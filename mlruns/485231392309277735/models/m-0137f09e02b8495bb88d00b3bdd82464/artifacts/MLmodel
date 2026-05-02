@@ -1,0 +1,23 @@
+artifact_path: file:///c:/Coding SDT/VS Code/Python/Semester 4/PBL/notebooks/../mlruns/485231392309277735/models/m-0137f09e02b8495bb88d00b3bdd82464/artifacts
+flavors:
+  lightgbm:
+    code: null
+    data: model.pkl
+    lgb_version: 4.6.0
+    model_class: lightgbm.sklearn.LGBMRegressor
+    serialization_format: cloudpickle
+    skops_trusted_types: null
+  python_function:
+    data: model.pkl
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.lightgbm
+    python_version: 3.11.9
+mlflow_version: 3.11.1
+model_id: m-0137f09e02b8495bb88d00b3bdd82464
+model_size_bytes: 568789
+model_uuid: m-0137f09e02b8495bb88d00b3bdd82464
+prompts: null
+run_id: 0514eb2fcfd040158dc5748104573bc5
+utc_time_created: '2026-05-02 04:26:00.436213'

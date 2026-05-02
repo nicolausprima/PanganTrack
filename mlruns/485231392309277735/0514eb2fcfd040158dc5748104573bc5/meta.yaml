@@ -1,0 +1,14 @@
+artifact_uri: file:///c:/Coding SDT/VS Code/Python/Semester 4/PBL/notebooks/../mlruns/485231392309277735/0514eb2fcfd040158dc5748104573bc5/artifacts
+end_time: 1777695964446
+entry_point_name: ''
+experiment_id: '485231392309277735'
+lifecycle_stage: active
+run_id: 0514eb2fcfd040158dc5748104573bc5
+run_name: Grid Search
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1777695960246
+status: 3
+tags: []
+user_id: Nicolaus Prima

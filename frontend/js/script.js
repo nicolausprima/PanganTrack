@@ -448,28 +448,79 @@ function renderTrendChart(kom, daerah) {
     xLabels += `<text x="${sx(i).toFixed(1)}" y="${xLabelY}" font-size="9" fill="#bbb" text-anchor="${anchor}">${lbl || ''}</text>`;
   }
 
-  const histNasPts = histNas.map((v, i) => `${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
-  const histDaerahPts = histDaerah.map((v, i) => `${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
-  const predNasFull = [last(histNas), ...predNas];
-  const predDaerahFull = histDaerah.length ? [last(histDaerah), ...predDaerah] : [];
-  const predNasPts = predNasFull.map((v, i) => `${sx(histNas.length - 1 + i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
-  const predDaerahPts = predDaerahFull.map((v, i) => `${sx(histDaerah.length - 1 + i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
+  // Helper: bangun path SVG yang putus pada nilai null/NaN supaya garis
+  // tidak "jatuh" ke bawah plot area.
+  const isValid = v => v !== null && v !== undefined && !isNaN(v);
+  const linePath = (arr, indexOffset = 0) => {
+    let d = '';
+    let inSeg = false;
+    arr.forEach((v, i) => {
+      if (!isValid(v)) { inSeg = false; return; }
+      const cmd = inSeg ? 'L' : 'M';
+      d += `${cmd}${sx(indexOffset + i).toFixed(1)},${sy(v).toFixed(1)} `;
+      inSeg = true;
+    });
+    return d.trim();
+  };
+  // Path area gradient: untuk tiap segmen kontigu, tarik turun ke baseline.
+  const areaPath = (arr, indexOffset = 0) => {
+    const baseY = (P.t + CH).toFixed(1);
+    let d = '';
+    let segStart = -1;
+    arr.forEach((v, i) => {
+      const valid = isValid(v);
+      if (valid && segStart < 0) {
+        segStart = i;
+        d += `M${sx(indexOffset + i).toFixed(1)},${baseY} L${sx(indexOffset + i).toFixed(1)},${sy(v).toFixed(1)} `;
+      } else if (valid) {
+        d += `L${sx(indexOffset + i).toFixed(1)},${sy(v).toFixed(1)} `;
+      } else if (segStart >= 0) {
+        d += `L${sx(indexOffset + (i - 1)).toFixed(1)},${baseY} Z `;
+        segStart = -1;
+      }
+    });
+    if (segStart >= 0) d += `L${sx(indexOffset + arr.length - 1).toFixed(1)},${baseY} Z`;
+    return d.trim();
+  };
 
-  const areaNas = `M${sx(0).toFixed(1)},${P.t + CH} ${histNas.map((v, i) => `L${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ')} L${sx(histNas.length - 1).toFixed(1)},${P.t + CH} Z`;
-  const areaPred = `M${sx(histNas.length - 1).toFixed(1)},${P.t + CH} ${predNasFull.map((v, i) => `L${sx(histNas.length - 1 + i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ')} L${sx(total - 1).toFixed(1)},${P.t + CH} Z`;
+  const histNasPath    = linePath(histNas);
+  const histDaerahPath = linePath(histDaerah);
+
+  // Untuk segmen prediksi, awali dari titik valid terakhir histori supaya nyambung.
+  const lastHistNas    = [...histNas].reverse().find(isValid) ?? null;
+  const lastHistDaerah = [...histDaerah].reverse().find(isValid) ?? null;
+  const predNasFull    = isValid(lastHistNas)    ? [lastHistNas, ...predNas]       : predNas;
+  const predDaerahFull = isValid(lastHistDaerah) ? [lastHistDaerah, ...predDaerah] : predDaerah;
+  const predOffset     = isValid(lastHistNas)    ? histNas.length - 1              : histNas.length;
+  const predDaerahOff  = isValid(lastHistDaerah) ? histDaerah.length - 1           : histDaerah.length;
+
+  const predNasPath    = linePath(predNasFull, predOffset);
+  const predDaerahPath = linePath(predDaerahFull, predDaerahOff);
+
+  const areaNas  = areaPath(histNas);
+  const areaPred = areaPath(predNasFull, predOffset);
 
   let selisihArea = '';
   if (histDaerah.length && state.trendLayers.selisih) {
     const n = Math.min(histNas.length, histDaerah.length);
-    const upper = [];
-    const lower = [];
+    let segUpper = [];
+    let segLower = [];
+    let polys = [];
+    const flush = () => {
+      if (segUpper.length >= 2) {
+        polys.push(`<polygon points="${segUpper.concat(segLower).join(' ')}" fill="#8E5CF7" opacity="0.10"/>`);
+      }
+      segUpper = []; segLower = [];
+    };
     for (let i = 0; i < n; i++) {
+      if (!isValid(histNas[i]) || !isValid(histDaerah[i])) { flush(); continue; }
       const yN = sy(histNas[i]);
       const yD = sy(histDaerah[i]);
-      upper.push(`${sx(i).toFixed(1)},${Math.min(yN, yD).toFixed(1)}`);
-      lower.unshift(`${sx(i).toFixed(1)},${Math.max(yN, yD).toFixed(1)}`);
+      segUpper.push(`${sx(i).toFixed(1)},${Math.min(yN, yD).toFixed(1)}`);
+      segLower.unshift(`${sx(i).toFixed(1)},${Math.max(yN, yD).toFixed(1)}`);
     }
-    selisihArea = `<polygon points="${upper.concat(lower).join(' ')}" fill="#8E5CF7" opacity="0.10"/>`;
+    flush();
+    selisihArea = polys.join('');
   }
 
   const divX = sx(histNas.length - 1).toFixed(1);
@@ -477,10 +528,10 @@ function renderTrendChart(kom, daerah) {
   const dStep = Math.max(1, Math.floor(histNas.length / 12));
   for (let i = 0; i < histNas.length; i += dStep) {
     const label = labelPretty(labels[i]);
-    if (state.trendLayers.nasional) {
+    if (state.trendLayers.nasional && isValid(histNas[i])) {
       dots += `<circle class="hover-dot" cx="${sx(i).toFixed(1)}" cy="${sy(histNas[i]).toFixed(1)}" r="5" fill="#1D9E75" opacity="0.0" onmousemove="showTooltip(event, '<strong>${safeText(kom)}</strong><br>Nasional · ${label}<br>${rp(histNas[i])}')" onmouseleave="hideTooltip()"/>`;
     }
-    if (histDaerah[i] && state.trendLayers.daerah) {
+    if (state.trendLayers.daerah && isValid(histDaerah[i])) {
       const diff = pct(histDaerah[i], histNas[i]);
       dots += `<circle class="hover-dot" cx="${sx(i).toFixed(1)}" cy="${sy(histDaerah[i]).toFixed(1)}" r="5" fill="#378ADD" opacity="0.0" onmousemove="showTooltip(event, '<strong>${safeText(kom)}</strong><br>${safeText(daerah)} · ${label}<br>${rp(histDaerah[i])}<br>Selisih: ${changeLabel(diff)}')" onmouseleave="hideTooltip()"/>`;
     }
@@ -515,10 +566,10 @@ function renderTrendChart(kom, daerah) {
     ${state.trendLayers.nasional ? `<path d="${areaNas}" fill="url(#gH)"/>` : ''}
     ${state.trendLayers.prediksi ? `<path d="${areaPred}" fill="url(#gP)"/>` : ''}
     ${selisihArea}
-    ${state.trendLayers.nasional ? `<polyline points="${histNasPts}" fill="none" stroke="#1D9E75" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
-    ${state.trendLayers.daerah && histDaerah.length ? `<polyline points="${histDaerahPts}" fill="none" stroke="#378ADD" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
-    ${state.trendLayers.prediksi && state.trendLayers.nasional ? `<polyline points="${predNasPts}" fill="none" stroke="#EF9F27" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7,3"/>` : ''}
-    ${state.trendLayers.prediksi && state.trendLayers.daerah && predDaerahPts ? `<polyline points="${predDaerahPts}" fill="none" stroke="#7C9CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5,3"/>` : ''}
+    ${state.trendLayers.nasional && histNasPath ? `<path d="${histNasPath}" fill="none" stroke="#1D9E75" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+    ${state.trendLayers.daerah && histDaerahPath ? `<path d="${histDaerahPath}" fill="none" stroke="#378ADD" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+    ${state.trendLayers.prediksi && state.trendLayers.nasional && predNasPath ? `<path d="${predNasPath}" fill="none" stroke="#EF9F27" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7,3"/>` : ''}
+    ${state.trendLayers.prediksi && state.trendLayers.daerah && predDaerahPath ? `<path d="${predDaerahPath}" fill="none" stroke="#7C9CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5,3"/>` : ''}
     <line x1="${divX}" y1="${P.t}" x2="${divX}" y2="${P.t + CH}" stroke="#ccc" stroke-dasharray="4,3"/>
     <text x="${parseFloat(divX) + 4}" y="${P.t + 10}" font-size="8.5" fill="#aaa">Data terakhir</text>
     ${latestDiffLabel}
@@ -543,10 +594,20 @@ function renderDaerahCompareChart(kom, daerah) {
   const labels = PANGAN_DATA.labels.slice(-n);
   const W = 320, H = 260, P = { t: 20, r: 16, b: 46, l: 58 };
   const CW = W - P.l - P.r, CH = H - P.t - P.b;
-  const all = [...nas12, ...ds12];
+  const isValid = v => v !== null && v !== undefined && !isNaN(v);
+  const all = [...nas12, ...ds12].filter(isValid);
   const mn = Math.min(...all) * 0.98, mx = Math.max(...all) * 1.02;
   const sx = i => P.l + (i / (n - 1)) * CW;
   const sy = v => P.t + CH - ((v - mn) / (mx - mn)) * CH;
+  const linePath = (arr) => {
+    let d = '', inSeg = false;
+    arr.forEach((v, i) => {
+      if (!isValid(v)) { inSeg = false; return; }
+      d += `${inSeg ? 'L' : 'M'}${sx(i).toFixed(1)},${sy(v).toFixed(1)} `;
+      inSeg = true;
+    });
+    return d.trim();
+  };
 
   let yGrid = '';
   for (let s = 0; s <= 4; s++) {
@@ -554,8 +615,8 @@ function renderDaerahCompareChart(kom, daerah) {
     yGrid += `<line x1="${P.l}" y1="${y.toFixed(1)}" x2="${W - P.r}" y2="${y.toFixed(1)}" stroke="#f0f0ec"/>`;
     yGrid += `<text x="${P.l - 5}" y="${y.toFixed(1)}" font-size="9" fill="#bbb" text-anchor="end" dominant-baseline="middle">${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v.toFixed(0)}</text>`;
   }
-  const nasPts = nas12.map((v, i) => `${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
-  const dsPts = ds12.map((v, i) => `${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
+  const nasPath = linePath(nas12);
+  const dsPath  = linePath(ds12);
   let xLabels = '';
   [0, Math.floor((n - 1) / 2), n - 1].forEach(i => {
     const anchor = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
@@ -564,16 +625,22 @@ function renderDaerahCompareChart(kom, daerah) {
 
   let hit = '';
   for (let i = 0; i < n; i++) {
+    if (!isValid(ds12[i]) || !isValid(nas12[i])) continue;
     const diff = pct(ds12[i], nas12[i]);
     hit += `<circle class="hover-dot" cx="${sx(i).toFixed(1)}" cy="${sy(ds12[i]).toFixed(1)}" r="6" fill="#378ADD" opacity="0" onmousemove="showTooltip(event, '<strong>${safeText(daerah)}</strong><br>${safeText(kom)} · ${labelPretty(labels[i])}<br>Daerah: ${rp(ds12[i])}<br>Nasional: ${rp(nas12[i])}<br>Selisih: ${changeLabel(diff)}')" onmouseleave="hideTooltip()"/>`;
   }
 
+  const lastNasValid = [...nas12].reverse().find(isValid);
+  const lastDsValid  = [...ds12].reverse().find(isValid);
+  const lastNasIdx   = isValid(lastNasValid) ? nas12.lastIndexOf(lastNasValid) : -1;
+  const lastDsIdx    = isValid(lastDsValid)  ? ds12.lastIndexOf(lastDsValid)  : -1;
+
   document.getElementById('svg-daerah-compare').innerHTML = `
     ${yGrid}
-    <polyline points="${nasPts}" fill="none" stroke="#D85A30" stroke-width="2" stroke-linecap="round"/>
-    <polyline points="${dsPts}" fill="none" stroke="#378ADD" stroke-width="2" stroke-linecap="round"/>
-    <circle cx="${sx(n - 1).toFixed(1)}" cy="${sy(last(nas12)).toFixed(1)}" r="3" fill="#D85A30"/>
-    <circle cx="${sx(n - 1).toFixed(1)}" cy="${sy(last(ds12)).toFixed(1)}" r="3" fill="#378ADD"/>
+    ${nasPath ? `<path d="${nasPath}" fill="none" stroke="#D85A30" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+    ${dsPath  ? `<path d="${dsPath}"  fill="none" stroke="#378ADD" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+    ${lastNasIdx >= 0 ? `<circle cx="${sx(lastNasIdx).toFixed(1)}" cy="${sy(lastNasValid).toFixed(1)}" r="3" fill="#D85A30"/>` : ''}
+    ${lastDsIdx  >= 0 ? `<circle cx="${sx(lastDsIdx).toFixed(1)}"  cy="${sy(lastDsValid).toFixed(1)}"  r="3" fill="#378ADD"/>` : ''}
     ${hit}
     ${xLabels}`;
 }

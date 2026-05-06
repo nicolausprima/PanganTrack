@@ -1,0 +1,10 @@
+artifact_location: file:///c:/Coding SDT/VS Code/Python/Semester 4/PBL/notebooks/../mlruns/485231392309277735/models/m-bcc47a411fa84682b33df36bc74f4792/artifacts
+creation_timestamp: 1778040947309
+experiment_id: '485231392309277735'
+last_updated_timestamp: 1778040959412
+model_id: m-bcc47a411fa84682b33df36bc74f4792
+model_type: null
+name: model
+source_run_id: fbc6edb467da49c28dba971efc582610
+status: 2
+status_message: null

@@ -424,7 +424,7 @@ function renderTrendChart(kom, daerah) {
   const labels = PANGAN_DATA.labels;
   document.getElementById('load-nas').style.display = 'none';
 
-  const W = 640, H = 260, P = { t: 24, r: 20, b: 38, l: 68 };
+  const W = 640, H = 260, P = { t: 24, r: 20, b: 56, l: 68 };
   const CW = W - P.l - P.r, CH = H - P.t - P.b;
   const all = [...histNas, ...histDaerah, ...predNas, ...predDaerah].filter(v => v !== null && v !== undefined && !isNaN(v));
   const mn = Math.min(...all) * 0.985, mx = Math.max(...all) * 1.015;
@@ -440,11 +440,12 @@ function renderTrendChart(kom, daerah) {
   }
 
   const labelStep = Math.max(1, Math.floor(total / 9));
+  const xLabelY = P.t + CH + 22;   // jarak ~22px di bawah plot area, masih dalam P.b
   let xLabels = '';
   for (let i = 0; i < total; i += labelStep) {
     const lbl = i < histNas.length ? labelPretty(labels[i]) : futureLabels()[i - histNas.length];
     const anchor = i === 0 ? 'start' : (i + labelStep >= total ? 'end' : 'middle');
-    xLabels += `<text x="${sx(i).toFixed(1)}" y="${H - 8}" font-size="9" fill="#bbb" text-anchor="${anchor}">${lbl || ''}</text>`;
+    xLabels += `<text x="${sx(i).toFixed(1)}" y="${xLabelY}" font-size="9" fill="#bbb" text-anchor="${anchor}">${lbl || ''}</text>`;
   }
 
   const histNasPts = histNas.map((v, i) => `${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');

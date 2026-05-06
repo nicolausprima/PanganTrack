@@ -443,7 +443,8 @@ function renderTrendChart(kom, daerah) {
   let xLabels = '';
   for (let i = 0; i < total; i += labelStep) {
     const lbl = i < histNas.length ? labelPretty(labels[i]) : futureLabels()[i - histNas.length];
-    xLabels += `<text x="${sx(i).toFixed(1)}" y="${H - 8}" font-size="9" fill="#bbb" text-anchor="middle">${lbl || ''}</text>`;
+    const anchor = i === 0 ? 'start' : (i + labelStep >= total ? 'end' : 'middle');
+    xLabels += `<text x="${sx(i).toFixed(1)}" y="${H - 8}" font-size="9" fill="#bbb" text-anchor="${anchor}">${lbl || ''}</text>`;
   }
 
   const histNasPts = histNas.map((v, i) => `${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
@@ -556,7 +557,8 @@ function renderDaerahCompareChart(kom, daerah) {
   const dsPts = ds12.map((v, i) => `${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
   let xLabels = '';
   [0, Math.floor((n - 1) / 2), n - 1].forEach(i => {
-    xLabels += `<text x="${sx(i).toFixed(1)}" y="${H - 8}" font-size="9" fill="#888" text-anchor="middle">${labelPretty(labels[i])}</text>`;
+    const anchor = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
+    xLabels += `<text x="${sx(i).toFixed(1)}" y="${H - 8}" font-size="9" fill="#888" text-anchor="${anchor}">${labelPretty(labels[i])}</text>`;
   });
 
   let hit = '';

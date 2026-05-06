@@ -8,15 +8,80 @@
    Data dibaca dari data.js
    ================================================ */
 
+/* Endpoint FastAPI. Default kosong = same-origin (frontend di-serve oleh
+   FastAPI di port yang sama). Ganti ke 'http://127.0.0.1:8000' kalau
+   frontend dibuka langsung dari file:// atau dari live-server lain. */
 const API_CONFIG = {
-  USE_MOCK: true,
-  BASE_URL: 'http://127.0.0.1:8000',
+  BASE_URL: '',
   ENDPOINTS: {
-    predict: '/api/predict-lightgbm/',
-    nasional: '/api/nasional/',
-    daerah: '/api/daerah/'
+    bootstrap:    '/api/bootstrap',
+    predict:      '/api/predict',
+    predictBulk:  '/api/predict-bulk',
+    history:      '/api/history',
+    wilayah:      '/api/wilayah',
+    komoditas:    '/api/komoditas',
   }
 };
+
+/* Cache hasil prediksi LightGBM dari API supaya tidak hit endpoint berulang.
+   Key = `${wilayah}|${komoditas}|${periods}`. Diisi via prefetchPredictions(). */
+const predictionCache = new Map();
+const predKey = (wilayah, kom, periods) => `${wilayah}|${kom}|${periods}`;
+
+async function apiFetch(path, options = {}) {
+  const url = API_CONFIG.BASE_URL + path;
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    ...options,
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`API ${path} ${res.status}: ${txt}`);
+  }
+  return res.json();
+}
+
+async function bootstrapFromAPI() {
+  const data = await apiFetch(API_CONFIG.ENDPOINTS.bootstrap);
+  // Populate global PANGAN_DATA dengan response API.
+  Object.assign(window.PANGAN_DATA, data);
+}
+
+async function prefetchPredictions(periods) {
+  /* Pre-fetch prediksi LightGBM untuk komoditas terpilih (nasional + daerah aktif)
+     + semua komoditas untuk tabel (nasional saja, supaya ringan). */
+  const kom    = state.komoditas;
+  const daerah = state.daerah;
+  const nasionalLabel = PANGAN_DATA.nasional_label || 'Nasional';
+
+  const requests = [];
+  // Untuk panel ringkasan & chart utama: 1 nasional + 1 daerah pilihan.
+  requests.push({ wilayah: nasionalLabel, komoditas: kom, n_bulan: periods });
+  if (PANGAN_DATA.daerah[daerah]?.[kom]) {
+    requests.push({ wilayah: daerah, komoditas: kom, n_bulan: periods });
+  }
+  // Untuk tabel: prediksi nasional semua komoditas.
+  PANGAN_DATA.komoditas_list.forEach(k => {
+    if (k !== kom) requests.push({ wilayah: nasionalLabel, komoditas: k, n_bulan: periods });
+  });
+
+  const need = requests.filter(r => !predictionCache.has(predKey(r.wilayah, r.komoditas, r.n_bulan)));
+  if (!need.length) return;
+
+  try {
+    const resp = await apiFetch(API_CONFIG.ENDPOINTS.predictBulk, {
+      method: 'POST',
+      body: JSON.stringify(need),
+    });
+    (resp.results || []).forEach(r => {
+      if (r.error) return;
+      const arr = (r.prediksi || []).map(p => p.harga_prediksi);
+      predictionCache.set(predKey(r.wilayah, r.komoditas, r.n_bulan), arr);
+    });
+  } catch (e) {
+    console.error('predict-bulk gagal:', e);
+  }
+}
 
 let state = {
   sortDir: 'desc',
@@ -98,37 +163,34 @@ function safeText(txt) {
   return String(txt).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
 }
 
-/* LightGBM demo forecast:
-   Di frontend ini prediksi dibuat dari pola tren + musiman agar dashboard tetap bisa berjalan offline.
-   Saat backend Django aktif, ganti dengan response model LightGBM asli dari endpoint /api/predict-lightgbm/.
-*/
-function lightGBMForecast(series, periods = 6) {
-  const clean = series.filter(v => v !== null && v !== undefined && !isNaN(v));
-  if (clean.length < 3) return Array(periods).fill(last(clean) || 0);
-
-  const tail = clean.slice(-12);
-  const recent = clean.slice(-6);
-  const prev = clean.slice(-12, -6);
-  const lastVal = last(clean);
-  const avgRecent = avg(recent);
-  const avgPrev = prev.length ? avg(prev) : avgRecent;
-  const trend = (avgRecent - avgPrev) / 6;
-
-  const preds = [];
-  for (let i = 1; i <= periods; i++) {
-    const seasonalBase = tail[(tail.length - periods + i - 1 + tail.length) % tail.length] || avgRecent;
-    const seasonalEffect = (seasonalBase - avgRecent) * 0.18;
-    const momentum = trend * i * 0.85;
-    const smooth = lastVal * 0.72 + (lastVal + momentum + seasonalEffect) * 0.28;
-    preds.push(Math.max(0, Math.round(smooth)));
+/* Wrapper sinkron untuk akses prediksi LightGBM yang sudah di-prefetch dari API.
+   Saat cache miss, fallback ke flat-line dari nilai terakhir series — supaya
+   render tidak error sebelum prefetchPredictions() selesai. */
+function lightGBMForecast(series, periods = 6, wilayah = null, komoditas = null) {
+  const _wilayah   = wilayah   || (PANGAN_DATA.nasional_label || 'Nasional');
+  const _komoditas = komoditas || state.komoditas;
+  if (_komoditas) {
+    const cached = predictionCache.get(predKey(_wilayah, _komoditas, periods));
+    if (cached && cached.length) return cached.slice(0, periods);
   }
-  return preds;
+  const clean = (series || []).filter(v => v !== null && v !== undefined && !isNaN(v));
+  const lastVal = last(clean) || 0;
+  return Array(periods).fill(lastVal);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    await bootstrapFromAPI();
+  } catch (e) {
+    console.error('Gagal bootstrap dari API:', e);
+    alert('Gagal memuat data dari API.\nPastikan FastAPI berjalan di ' +
+          (API_CONFIG.BASE_URL || window.location.origin) + '.');
+    return;
+  }
   initSelects();
   loadHero();
   loadStats();
+  await prefetchPredictions(state.periods);
   runPrediction();
   renderDaerahBars();
   renderTable();
@@ -252,7 +314,7 @@ async function runPrediction() {
   spn.classList.remove('hidden');
 
   try {
-    await new Promise(r => setTimeout(r, 250));
+    await prefetchPredictions(state.periods);
     updateSummaryCards(kom, daerah);
     updateAutoInsight(kom, daerah);
     renderTrendChart(kom, daerah);
@@ -268,7 +330,8 @@ async function runPrediction() {
 function updateSummaryCards(kom, daerah) {
   const nas = PANGAN_DATA.nasional[kom];
   const ds = PANGAN_DATA.daerah[daerah]?.[kom];
-  const pred = lightGBMForecast(nas, state.periods);
+  const nasionalLabel = PANGAN_DATA.nasional_label || 'Nasional';
+  const pred = lightGBMForecast(nas, state.periods, nasionalLabel, kom);
   const lastNas = last(nas);
   const lastDaerah = ds ? last(ds) : null;
   const trendNas = pct(lastNas, nas[0]);
@@ -310,8 +373,9 @@ function updateSummaryCards(kom, daerah) {
 function updateAutoInsight(kom, daerah) {
   const nas = PANGAN_DATA.nasional[kom];
   const ds = PANGAN_DATA.daerah[daerah]?.[kom];
-  const predNas = lightGBMForecast(nas, state.periods);
-  const predDaerah = ds ? lightGBMForecast(ds, state.periods) : [];
+  const nasionalLabel = PANGAN_DATA.nasional_label || 'Nasional';
+  const predNas    = lightGBMForecast(nas, state.periods, nasionalLabel, kom);
+  const predDaerah = ds ? lightGBMForecast(ds, state.periods, daerah, kom) : [];
   const lastNas = last(nas);
   const lastDaerah = ds ? last(ds) : null;
   const predNasFinal = last(predNas);
@@ -354,8 +418,9 @@ function hideTooltip() {
 function renderTrendChart(kom, daerah) {
   const histNas = PANGAN_DATA.nasional[kom] || [];
   const histDaerah = PANGAN_DATA.daerah[daerah]?.[kom] || [];
-  const predNas = lightGBMForecast(histNas, state.periods);
-  const predDaerah = histDaerah.length ? lightGBMForecast(histDaerah, state.periods) : [];
+  const nasionalLabel = PANGAN_DATA.nasional_label || 'Nasional';
+  const predNas    = lightGBMForecast(histNas, state.periods, nasionalLabel, kom);
+  const predDaerah = histDaerah.length ? lightGBMForecast(histDaerah, state.periods, daerah, kom) : [];
   const labels = PANGAN_DATA.labels;
   document.getElementById('load-nas').style.display = 'none';
 
@@ -559,12 +624,13 @@ function renderTable() {
   const search = (document.getElementById('tbl-search')?.value || '').toLowerCase();
   const tbody = document.getElementById('tbl-body');
 
+  const nasionalLabel = PANGAN_DATA.nasional_label || 'Nasional';
   const rows = PANGAN_DATA.komoditas_list
     .filter(kom => !search || kom.toLowerCase().includes(search))
     .map(kom => {
       const ns = PANGAN_DATA.nasional[kom];
       const ds = PANGAN_DATA.daerah[daerah]?.[kom];
-      const pred = lightGBMForecast(ns, state.periods);
+      const pred = lightGBMForecast(ns, state.periods, nasionalLabel, kom);
       const tr = pct(last(ns), ns[0]);
       const diff = ds ? pct(last(ds), last(ns)) : null;
       const spark = buildSparkline(ns.slice(-12), changeClass(tr));
@@ -593,10 +659,8 @@ function buildSparkline(series, cls) {
   return `<span class="sparkline">${bars}</span>`;
 }
 
-/*
-  Integrasi backend LightGBM:
-  1. Latih model LightGBM di Django/Python.
-  2. Buat endpoint: GET /api/predict-lightgbm/?komoditas=Beras&periods=1|3|6|12&daerah=Jawa%20Timur
-  3. Return JSON: { "predictions_nasional": [..], "predictions_daerah": [..], "labels": [..] }
-  4. Set API_CONFIG.USE_MOCK = false dan pakai response backend di runPrediction().
+/* Integrasi LightGBM aktif:
+   - bootstrapFromAPI()       : populate PANGAN_DATA dari /api/bootstrap.
+   - prefetchPredictions()    : pre-fetch ke /api/predict-bulk dan cache hasilnya.
+   - lightGBMForecast(...)    : ambil dari cache; kalau miss, fallback flat-line.
 */

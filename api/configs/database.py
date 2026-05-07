@@ -20,14 +20,10 @@ DB_NAME     = os.getenv("DB_NAME", "pbl_forecast")
 
 DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-engine       = create_engine(DATABASE_URL, pool_pre_ping=True)
-SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
-Base         = declarative_base()
-
+Base = declarative_base()
 
 class PrediksiLog(Base):
     __tablename__ = "prediksi_log"
-
     id         = Column(Integer, primary_key=True, index=True)
     wilayah    = Column(String(100))
     komoditas  = Column(String(200))
@@ -35,27 +31,36 @@ class PrediksiLog(Base):
     hasil      = Column(Text)
     created_at = Column(DateTime, default=datetime.now)
 
+# Lazy — engine dibuat hanya saat diperlukan
+_engine       = None
+_SessionLocal = None
+
+def _get_engine():
+    global _engine, _SessionLocal
+    if _engine is None:
+        _engine = create_engine(
+            DATABASE_URL,
+            pool_pre_ping=True,
+            connect_args={"connect_timeout": 3}  # timeout cepat
+        )
+        _SessionLocal = sessionmaker(bind=_engine, autocommit=False, autoflush=False)
+    return _engine, _SessionLocal
 
 def init_db() -> bool:
-    """Create tables if MySQL reachable. Returns True on success, False otherwise.
-    API tetap bisa jalan tanpa DB; logging prediksi saja yang dilewati."""
     try:
+        engine, _ = _get_engine()
         Base.metadata.create_all(bind=engine)
-        logger.info("MySQL connected, tables ready.")
+        logger.info("MySQL connected.")
         return True
-    except SQLAlchemyError as e:
-        logger.warning("MySQL tidak tersedia (%s). API jalan tanpa logging prediksi.", e)
+    except Exception as e:
+        logger.warning("MySQL tidak tersedia: %s", e)
         return False
 
-
 def get_db():
-    """Yield a DB session, atau None jika MySQL tidak tersedia."""
     try:
+        _, SessionLocal = _get_engine()
         db = SessionLocal()
-    except SQLAlchemyError:
-        yield None
-        return
-    try:
         yield db
-    finally:
         db.close()
+    except Exception:
+        yield None

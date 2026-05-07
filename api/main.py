@@ -40,3 +40,19 @@ app.include_router(router, prefix="/api", tags=["Forecast"])
 @app.get("/api", tags=["Root"])
 def api_root():
     return {"message": "API Forecast Harga Komoditas berjalan"}
+
+import os
+from pathlib import Path
+
+@app.get("/api/debug")
+def debug():
+    api_dir = Path(__file__).resolve().parent
+    root_dir = api_dir.parent
+    return {
+        "api_dir": str(api_dir),
+        "root_dir": str(root_dir),
+        "data_exists": (root_dir / "data" / "processed" / "harga_gabungan.csv").exists(),
+        "model_exists": (api_dir / "models" / "lgbm_final.joblib").exists(),
+        "files_in_root": os.listdir(str(root_dir)),
+        "files_in_api": os.listdir(str(api_dir)),
+    }

@@ -32,3 +32,12 @@ def debug():
         "model_exists": (api_dir / "models" / "lgbm_final.joblib").exists(),
         "csv_exists": (root_dir / "data" / "processed" / "harga_gabungan.csv").exists(),
     }
+
+@app.get("/api/debug-import")
+def debug_import():
+    try:
+        from routes.predict import router
+        return {"status": "ok"}
+    except Exception as e:
+        import traceback
+        return {"status": "error", "error": str(e), "traceback": traceback.format_exc()}

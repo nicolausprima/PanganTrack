@@ -6,7 +6,7 @@
       "use": "@vercel/python"
     },
     {
-      "src": "PanganTrack/frontend/**",
+      "src": "PanganTrack/frontend/**/*",
       "use": "@vercel/static"
     }
   ],

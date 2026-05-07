@@ -703,7 +703,6 @@ function renderTable() {
       const pred = lightGBMForecast(ns, state.periods, nasionalLabel, kom);
       const tr = pct(last(ns), ns[0]);
       const diff = ds ? pct(last(ds), last(ns)) : null;
-      const spark = buildSparkline(ns.slice(-12), changeClass(tr));
       return `
         <tr>
           <td><strong>${iconFor(kom)} ${safeText(kom)}</strong></td>
@@ -713,7 +712,7 @@ function renderTable() {
           <td class="${changeClass(diff)}">${diff === null ? '—' : changeLabel(diff)}</td>
           <td class="${changeClass(pct(pred[0], last(ns)))}">${rp(pred[0])}</td>
           <td class="${changeClass(pct(pred[pred.length - 1], last(ns)))}">${rp(pred[pred.length - 1])}</td>
-          <td>${spark}<span class="badge badge-${changeClass(tr)}" style="margin-left:6px">${changeLabel(tr)}</span></td>
+          <td style="white-space:nowrap">${buildSparkline(ns.slice(-12), changeClass(tr))}<span class="badge badge-${changeClass(tr)}" style="display:inline-block;vertical-align:middle;margin-left:4px">${changeLabel(tr)}</span></td>
         </tr>`;
     });
   tbody.innerHTML = rows.join('') || `<tr><td colspan="8" class="tbl-loading">Tidak ditemukan</td></tr>`;
@@ -722,15 +721,11 @@ function renderTable() {
 function buildSparkline(series, cls) {
   const mn = Math.min(...series), mx = Math.max(...series);
   const color = cls === 'up' ? '#1D9E75' : cls === 'down' ? '#E24B4A' : '#EF9F27';
-  const bars = series.map(v => {
-    const h = mx === mn ? 50 : Math.round(((v - mn) / (mx - mn)) * 14 + 4);
-    return `<div class="spark-bar" style="height:${h}px;background:${color};opacity:0.7"></div>`;
+  const barW = 4, gap = 2, startX = 2;
+  const bars = series.map((v, i) => {
+    const h = mx === mn ? 10 : Math.round(((v - mn) / (mx - mn)) * 14 + 4);
+    return `<rect x="${startX + i*(barW+gap)}" y="${20-h}" width="${barW}" height="${h}" rx="1" fill="${color}" opacity="0.75"/>`;
   }).join('');
-  return `<span class="sparkline">${bars}</span>`;
+  const svgW = startX + series.length * (barW + gap) - gap + 2;
+  return `<svg width="${svgW}" height="20" style="display:inline-block;vertical-align:middle">${bars}</svg>`;
 }
-
-/* Integrasi LightGBM aktif:
-   - bootstrapFromAPI()       : populate PANGAN_DATA dari /api/bootstrap.
-   - prefetchPredictions()    : pre-fetch ke /api/predict-bulk dan cache hasilnya.
-   - lightGBMForecast(...)    : ambil dari cache; kalau miss, fallback flat-line.
-*/

@@ -339,10 +339,6 @@ tbody tr:hover td { background:var(--green-pale); }
 .badge-down { background:var(--red-pale);   color:var(--red);   }
 .badge-warn { background:var(--amber-pale); color:var(--amber); }
 
-/* mini sparkline */
-.sparkline { display:inline-flex; align-items:flex-end; gap:2px; height:20px; vertical-align:middle; }
-.spark-bar { width:4px; border-radius:1px 1px 0 0; }
-
 /* ================================================
    FOOTER
    ================================================ */
@@ -455,4 +451,20 @@ footer { background:var(--text); color:rgba(255,255,255,.65); padding:42px 2rem;
   .insight-card { padding: 16px; }
   .chart-toggle-row { gap: 6px; }
   .chart-toggle { font-size: 11px; padding: 5px 10px; }
+}
+
+#main-table td:last-child {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+#main-table td:last-child svg {
+  display: inline-block !important;
+  vertical-align: middle !important;
+}
+
+#main-table td:last-child .badge {
+  display: inline-block !important;
+  vertical-align: middle !important;
+  white-space: nowrap;
 }

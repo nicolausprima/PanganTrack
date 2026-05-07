@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "PanganTrack/api/main.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "PanganTrack/frontend/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "PanganTrack/api/main.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "PanganTrack/frontend/$1"
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import os
 import json
+from pathlib import Path
 from typing import List, Optional, Dict
 
 import joblib
@@ -8,27 +9,36 @@ import pandas as pd
 from dateutil.relativedelta import relativedelta
 
 from fastapi import APIRouter, HTTPException, Depends, Query, Body
-from sqlalchemy.orm import Session
 
 from schemas.predict import (
     PredictRequest,
     PredictResponse,
     HistoryResponse,
 )
-from configs.database import get_db, PrediksiLog
+
+try:
+    from sqlalchemy.orm import Session
+    from configs.database import get_db, PrediksiLog
+    HAS_DB = True
+except ImportError:
+    HAS_DB = False
+    Session = None
+    def get_db():
+        yield None
+    PrediksiLog = None
 
 router = APIRouter()
 
 # ── Path dataset & model ─────────────────────────────────────────────────────
-BASE_DIR  = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-DATA_PATH = os.path.join(BASE_DIR, "data", "processed", "harga_gabungan.csv")
-MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
+BASE_DIR  = Path(__file__).resolve().parent.parent.parent
+DATA_PATH = BASE_DIR / "data" / "processed" / "harga_gabungan.csv"
+MODEL_DIR = Path(__file__).resolve().parent.parent / "models"
 
 # ── Load model & encoder (sekali saat import) ────────────────────────────────
-model        = joblib.load(os.path.join(MODEL_DIR, "lgbm_final.joblib"))
-scaler       = joblib.load(os.path.join(MODEL_DIR, "scaler.joblib"))
-le_wilayah   = joblib.load(os.path.join(MODEL_DIR, "le_wilayah.joblib"))
-le_komoditas = joblib.load(os.path.join(MODEL_DIR, "le_komoditas.joblib"))
+model        = joblib.load(MODEL_DIR / "lgbm_final.joblib")
+scaler       = joblib.load(MODEL_DIR / "scaler.joblib")
+le_wilayah   = joblib.load(MODEL_DIR / "le_wilayah.joblib")
+le_komoditas = joblib.load(MODEL_DIR / "le_komoditas.joblib")
 
 WILAYAH_SET   = set(le_wilayah.classes_.tolist())
 KOMODITAS_SET = set(le_komoditas.classes_.tolist())
@@ -43,7 +53,6 @@ FITUR = [
 dataset = pd.read_csv(DATA_PATH)
 dataset["tanggal"] = pd.to_datetime(dataset["tanggal"])
 
-# Mapping ikon untuk komoditas — dipakai frontend.
 KOMODITAS_ICON: Dict[str, str] = {
     "Bawang Merah":  "🧅",
     "Bawang Putih":  "🧄",
@@ -83,7 +92,6 @@ def _get_last_prices(wilayah: str, komoditas: str, n: int = 3) -> List[float]:
 
 
 def _forecast(wilayah: str, komoditas: str, n_bulan: int) -> List[dict]:
-    """Inti prediksi rekursif LightGBM. Diekspos ke endpoint /predict & /predict-bulk."""
     if wilayah not in WILAYAH_SET:
         raise HTTPException(status_code=400, detail=f"Wilayah '{wilayah}' tidak dikenali")
     if komoditas not in KOMODITAS_SET:
@@ -132,19 +140,16 @@ def _forecast(wilayah: str, komoditas: str, n_bulan: int) -> List[dict]:
     return hasil
 
 
-# ── GET /wilayah ──────────────────────────────────────────────────────────────
 @router.get("/wilayah", summary="List semua wilayah")
 def get_wilayah():
     return {"wilayah": sorted(dataset["wilayah"].unique().tolist())}
 
 
-# ── GET /komoditas ────────────────────────────────────────────────────────────
 @router.get("/komoditas", summary="List semua komoditas")
 def get_komoditas():
     return {"komoditas": sorted(dataset["komoditas"].unique().tolist())}
 
 
-# ── GET /history ──────────────────────────────────────────────────────────────
 @router.get("/history", response_model=HistoryResponse, summary="History harga aktual")
 def get_history(wilayah: str, komoditas: str):
     subset = (
@@ -162,22 +167,13 @@ def get_history(wilayah: str, komoditas: str):
     return {"wilayah": wilayah, "komoditas": komoditas, "history": history}
 
 
-# ── GET /bootstrap ────────────────────────────────────────────────────────────
 @router.get("/bootstrap", summary="Bulk data untuk dashboard frontend")
-def bootstrap(nasional_label: str = Query("Nasional", description="Nama wilayah yang dianggap 'Nasional'")):
-    """Mengembalikan struktur data lengkap yang dipakai dashboard:
-    - labels: array 'YYYY-MM' (urut menaik)
-    - areas: list daerah selain Nasional
-    - komoditas_list: list komoditas
-    - komoditas_icon: dict nama→emoji
-    - nasional: dict komoditas→array harga (sejajar dengan labels, nilai NaN→null)
-    - daerah: dict daerah→komoditas→array harga
-    """
+def bootstrap(nasional_label: str = Query("Nasional")):
     df = dataset.copy()
     df["label"] = df["tanggal"].dt.strftime("%Y-%m")
 
     labels = sorted(df["label"].unique().tolist())
-    all_wilayah   = sorted(df["wilayah"].unique().tolist())
+    all_wilayah    = sorted(df["wilayah"].unique().tolist())
     komoditas_list = sorted(df["komoditas"].unique().tolist())
     areas = [w for w in all_wilayah if w != nasional_label]
 
@@ -196,45 +192,34 @@ def bootstrap(nasional_label: str = Query("Nasional", description="Nama wilayah 
             row = pivot.loc[(wilayah, komoditas)]
         except KeyError:
             return [None] * len(labels)
-        return [
-            None if pd.isna(v) else round(float(v), 2)
-            for v in row.tolist()
-        ]
+        return [None if pd.isna(v) else round(float(v), 2) for v in row.tolist()]
 
-    nasional_data: Dict[str, List[Optional[float]]] = {
-        kom: _series_for(nasional_label, kom) for kom in komoditas_list
-    }
-
-    daerah_data: Dict[str, Dict[str, List[Optional[float]]]] = {
-        area: {kom: _series_for(area, kom) for kom in komoditas_list}
-        for area in areas
-    }
-
-    icon_map = {kom: _icon_for(kom) for kom in komoditas_list}
+    nasional_data = {kom: _series_for(nasional_label, kom) for kom in komoditas_list}
+    daerah_data   = {area: {kom: _series_for(area, kom) for kom in komoditas_list} for area in areas}
+    icon_map      = {kom: _icon_for(kom) for kom in komoditas_list}
 
     return {
-        "labels":          labels,
-        "areas":           areas,
-        "nasional_label":  nasional_label,
-        "komoditas_list":  komoditas_list,
-        "komoditas_icon":  icon_map,
-        "nasional":        nasional_data,
-        "daerah":          daerah_data,
+        "labels":         labels,
+        "areas":          areas,
+        "nasional_label": nasional_label,
+        "komoditas_list": komoditas_list,
+        "komoditas_icon": icon_map,
+        "nasional":       nasional_data,
+        "daerah":         daerah_data,
     }
 
 
-# ── POST /predict ─────────────────────────────────────────────────────────────
 @router.post("/predict", response_model=PredictResponse, summary="Prediksi harga ke depan")
-def predict(req: PredictRequest, db: Optional[Session] = Depends(get_db)):
+def predict(req: PredictRequest, db=Depends(get_db)):
     hasil = _forecast(req.wilayah, req.komoditas, req.n_bulan)
 
-    if db is not None:
+    if HAS_DB and db is not None:
         try:
             log = PrediksiLog(
-                wilayah   = req.wilayah,
-                komoditas = req.komoditas,
-                n_bulan   = req.n_bulan,
-                hasil     = json.dumps(hasil),
+                wilayah=req.wilayah,
+                komoditas=req.komoditas,
+                n_bulan=req.n_bulan,
+                hasil=json.dumps(hasil),
             )
             db.add(log)
             db.commit()
@@ -249,13 +234,8 @@ def predict(req: PredictRequest, db: Optional[Session] = Depends(get_db)):
     }
 
 
-# ── POST /predict-bulk ────────────────────────────────────────────────────────
-@router.post("/predict-bulk", summary="Prediksi banyak (wilayah, komoditas) sekaligus")
-def predict_bulk(
-    items: List[PredictRequest] = Body(..., description="Daftar permintaan prediksi"),
-):
-    """Versi efisien untuk dashboard yang butuh prediksi banyak komoditas/daerah sekaligus
-    tanpa banyak round-trip HTTP. Tidak melakukan logging ke DB."""
+@router.post("/predict-bulk", summary="Prediksi banyak sekaligus")
+def predict_bulk(items: List[PredictRequest] = Body(...)):
     out = []
     for it in items:
         try:
@@ -278,15 +258,14 @@ def predict_bulk(
     return {"results": out}
 
 
-# ── GET /prediksi-log ─────────────────────────────────────────────────────────
-@router.get("/prediksi-log", summary="History prediksi yang pernah dibuat")
+@router.get("/prediksi-log", summary="History prediksi")
 def get_prediksi_log(
     wilayah: Optional[str] = None,
     komoditas: Optional[str] = None,
     limit: int = 20,
-    db: Optional[Session] = Depends(get_db),
+    db=Depends(get_db),
 ):
-    if db is None:
+    if not HAS_DB or db is None:
         return []
 
     query = db.query(PrediksiLog).order_by(PrediksiLog.created_at.desc())

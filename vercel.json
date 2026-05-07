@@ -4,10 +4,6 @@
     {
       "src": "PanganTrack/api/main.py",
       "use": "@vercel/python"
-    },
-    {
-      "src": "PanganTrack/frontend/**/*",
-      "use": "@vercel/static"
     }
   ],
   "routes": [
@@ -16,8 +12,12 @@
       "dest": "PanganTrack/api/main.py"
     },
     {
+      "src": "/(css|js|assets)/(.*)",
+      "dest": "PanganTrack/frontend/$1/$2"
+    },
+    {
       "src": "/(.*)",
-      "dest": "PanganTrack/frontend/$1"
+      "dest": "PanganTrack/frontend/index.html"
     }
   ]
 }

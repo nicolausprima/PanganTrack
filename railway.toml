@@ -1,0 +1,11 @@
+[build]
+builder = "nixpacks"
+
+[build.nixpacksPlan.phases.setup]
+nixPkgs = ["libgcc", "stdenv.cc.cc.lib"]
+
+[deploy]
+startCommand = "uvicorn api.main:app --host 0.0.0.0 --port $PORT"
+healthcheckPath = "/api"
+healthcheckTimeout = 60
+restartPolicyType = "on_failure"

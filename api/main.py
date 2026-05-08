@@ -1,4 +1,5 @@
 import sys
+import logging
 from pathlib import Path
 
 API_DIR = Path(__file__).resolve().parent
@@ -7,8 +8,16 @@ if str(API_DIR) not in sys.path:
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from routes.predict import router
+from configs.database import init_db
 
-app = FastAPI()
+logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(name)s | %(message)s")
+
+app = FastAPI(
+    title="API Forecast Harga Komoditas",
+    description="Prediksi harga komoditas pangan per wilayah menggunakan LightGBM",
+    version="1.0.0",
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -17,9 +26,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def startup():
+    try:
+        init_db()
+    except Exception:
+        pass
+
+app.include_router(router, prefix="/api", tags=["Forecast"])
+
 @app.get("/api")
-def root():
-    return {"status": "ok"}
+def api_root():
+    return {"message": "API Forecast Harga Komoditas berjalan"}
 
 @app.get("/api/debug")
 def debug():
@@ -32,12 +50,3 @@ def debug():
         "model_exists": (api_dir / "models" / "lgbm_final.joblib").exists(),
         "csv_exists": (root_dir / "data" / "processed" / "harga_gabungan.csv").exists(),
     }
-
-@app.get("/api/debug-import")
-def debug_import():
-    try:
-        from routes.predict import router
-        return {"status": "ok"}
-    except Exception as e:
-        import traceback
-        return {"status": "error", "error": str(e), "traceback": traceback.format_exc()}

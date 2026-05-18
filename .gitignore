@@ -34,7 +34,10 @@ logs/
 *.log
 
 # Data & notebooks
-data/
+data/*
+!data/processed/
+data/processed/*
+!data/processed/harga_gabungan.csv
 notebooks/
 
 # Testing & misc

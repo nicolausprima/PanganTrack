@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PanganTrack — Prediksi Harga Pangan LightGBM</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=2">
+</head>
+<body>
+
+  <nav id="navbar">
+    <div class="nav-inner">
+      <div class="nav-logo">🌾 <span>Pangan<strong>Track</strong></span></div>
+      <div class="nav-links">
+        <a href="#ringkasan">Ringkasan</a>
+        <a href="#prediksi">Prediksi</a>
+        <a href="#provinsi">Per Daerah</a>
+        <a href="#tabel">Tabel Data</a>
+      </div>
+      <button class="btn-primary" onclick="gotoSection('prediksi')">Coba Prediksi</button>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="hero-text animate-fadein">
+      <div class="hero-badge"><span class="badge-dot"></span> Dataset Baru · Nasional & Daerah</div>
+      <h1>Prediksi <em>Harga Pangan</em><br>Nasional & Daerah</h1>
+      <p>Dashboard interaktif berbasis <strong>LightGBM</strong> untuk membaca tren harga pangan, membandingkan harga daerah dengan nasional, dan menampilkan prediksi periode berikutnya dari dataset gabungan terbaru.</p>
+      <div class="hero-btns">
+        <button class="btn-primary" onclick="gotoSection('prediksi')">Mulai Prediksi →</button>
+        <button class="btn-secondary" onclick="gotoSection('provinsi')">Bandingkan Daerah</button>
+      </div>
+      <div class="hero-stats">
+        <div class="hstat"><div class="hstat-num" id="hero-daerah">—</div><div class="hstat-lbl">Daerah</div></div>
+        <div class="hstat-div"></div>
+        <div class="hstat"><div class="hstat-num" id="hero-komoditas">—</div><div class="hstat-lbl">Komoditas</div></div>
+        <div class="hstat-div"></div>
+        <div class="hstat"><div class="hstat-num" id="hero-periode">—</div><div class="hstat-lbl">Periode Data</div></div>
+        <div class="hstat-div"></div>
+        <div class="hstat"><div class="hstat-num">LGBM</div><div class="hstat-lbl">Model Aktif</div></div>
+      </div>
+    </div>
+
+    <div class="hero-card animate-fadein delay-1">
+      <div class="card-topbar">
+        <span class="card-label">Harga Terakhir · Nasional</span>
+        <span class="live-tag" id="hero-last-label">● Data Terbaru</span>
+      </div>
+      <div id="hero-price-list" class="price-list">
+        <div class="skel"></div><div class="skel"></div>
+        <div class="skel"></div><div class="skel"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="stats-strip" id="ringkasan">
+    <div class="stats-inner">
+      <div class="stat-block">
+        <div class="stat-num" id="stat-naik">—</div>
+        <div class="stat-lbl">Komoditas Naik</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-num" id="stat-turun">—</div>
+        <div class="stat-lbl">Komoditas Turun</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-num" id="stat-daerah">—</div>
+        <div class="stat-lbl">Daerah Pembanding</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-num">LightGBM</div>
+        <div class="stat-lbl">Model Prediksi Utama</div>
+      </div>
+    </div>
+  </div>
+
+  <section class="section-wrap" id="prediksi">
+    <div class="section-inner">
+      <div class="section-head">
+        <div class="section-label">Prediksi Harga</div>
+        <div class="section-title">Nasional vs Daerah</div>
+        <p class="section-sub">Pilih komoditas dan daerah untuk melihat perbandingan harga, selisih terhadap nasional, serta prediksi LightGBM untuk 1 bulan, 3 bulan, 6 bulan, atau 1 tahun ke depan.</p>
+      </div>
+
+      <div class="controls-bar">
+        <div class="ctrl-group">
+          <label class="ctrl-label">Komoditas</label>
+          <select id="sel-komoditas" onchange="onParamChange()"></select>
+        </div>
+        <div class="ctrl-group">
+          <label class="ctrl-label">Daerah Pembanding</label>
+          <select id="sel-daerah" onchange="onParamChange()"></select>
+        </div>
+        <div class="ctrl-group">
+          <label class="ctrl-label">Model Prediksi</label>
+          <div class="model-toggle">
+            <button class="mtog active" type="button">LightGBM</button>
+          </div>
+        </div>
+        <div class="ctrl-group">
+          <label class="ctrl-label">Rentang Prediksi</label>
+          <select id="sel-period" onchange="onParamChange()">
+            <option value="1">1 bulan ke depan</option>
+            <option value="3">3 bulan ke depan</option>
+            <option value="6" selected>6 bulan ke depan</option>
+            <option value="12">1 tahun ke depan</option>
+          </select>
+        </div>
+        <button class="btn-run" id="btn-run" onclick="runPrediction()">
+          <span id="run-txt">Jalankan Prediksi</span>
+          <span id="run-spin" class="spinner hidden"></span>
+        </button>
+      </div>
+
+      <div class="summary-cards">
+        <div class="sum-card">
+          <div class="sc-tag">Harga Nasional Terakhir</div>
+          <div class="sc-price" id="sc-nas-now">—</div>
+          <div class="sc-change" id="sc-nas-trend">—</div>
+          <div class="sc-meta" id="sc-nas-date">—</div>
+        </div>
+        <div class="sum-card highlight">
+          <div class="sc-tag" id="sc-daerah-tag">Harga Daerah</div>
+          <div class="sc-price" id="sc-daerah-price">—</div>
+          <div class="sc-change" id="sc-daerah-vs">—</div>
+          <div class="sc-meta">dibanding Nasional pada periode sama</div>
+        </div>
+        <div class="sum-card">
+          <div class="sc-tag">Prediksi Nasional</div>
+          <div class="sc-price" id="sc-pred-price">—</div>
+          <div class="sc-change" id="sc-pred-change">—</div>
+          <div class="sc-meta" id="sc-pred-period">rentang prediksi</div>
+        </div>
+        <div class="sum-card">
+          <div class="sc-tag">Rekomendasi</div>
+          <div class="sc-price" id="sc-status">—</div>
+          <div class="sc-change" id="sc-status-detail">—</div>
+          <div class="sc-meta">berdasarkan selisih & tren</div>
+        </div>
+      </div>
+
+      <div class="insight-card" id="insight-card">
+        <div class="insight-icon">📊</div>
+        <div>
+          <div class="insight-label">Insight Hari Ini</div>
+          <div class="insight-text" id="auto-insight">Pilih komoditas dan daerah untuk melihat insight otomatis.</div>
+        </div>
+      </div>
+
+      <div class="charts-row">
+        <div class="chart-box big">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title" id="chart-nas-title">Tren Harga Nasional</div>
+              <div class="chart-sub">Historis dataset + proyeksi LightGBM sesuai rentang pilihan</div>
+            </div>
+            <div class="legend legend-wrap">
+              <div class="leg"><div class="leg-dot green"></div>Nasional</div>
+              <div class="leg"><div class="leg-dot blue"></div>Daerah</div>
+              <div class="leg"><div class="leg-dot amber"></div>Prediksi</div>
+              <div class="leg"><div class="leg-dot purple"></div>Selisih</div>
+            </div>
+          </div>
+          <div class="chart-toggle-row" aria-label="Kontrol grafik tren">
+            <button class="chart-toggle active" id="tg-nasional" onclick="toggleTrendLayer('nasional')">Nasional</button>
+            <button class="chart-toggle active" id="tg-daerah" onclick="toggleTrendLayer('daerah')">Daerah</button>
+            <button class="chart-toggle active" id="tg-prediksi" onclick="toggleTrendLayer('prediksi')">Prediksi</button>
+            <button class="chart-toggle active" id="tg-selisih" onclick="toggleTrendLayer('selisih')">Highlight Selisih</button>
+          </div>
+          <div id="load-nas" class="chart-loading">Memuat grafik...</div>
+          <svg id="svg-nasional" class="chart-svg" viewBox="0 0 640 260" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+
+        <div class="chart-box small">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title" id="chart-daerah-title">Daerah vs Nasional</div>
+              <div class="chart-sub">Perbandingan 12 periode terakhir</div>
+            </div>
+            <div class="legend">
+              <div class="leg"><div class="leg-dot blue"></div>Daerah</div>
+              <div class="leg"><div class="leg-dot coral"></div>Nasional</div>
+            </div>
+          </div>
+          <div id="load-daerah" class="chart-loading">Pilih parameter & jalankan prediksi...</div>
+          <svg id="svg-daerah-compare" class="chart-svg" viewBox="0 0 320 260" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-wrap alt-bg" id="provinsi">
+    <div class="section-inner">
+      <div class="section-head">
+        <div class="section-label">Semua Daerah</div>
+        <div class="section-title">Ranking Harga Per Daerah</div>
+        <p class="section-sub">Bandingkan harga setiap daerah terhadap harga nasional pada periode terbaru.</p>
+      </div>
+      <div class="prov-controls">
+        <div class="ctrl-group">
+          <label class="ctrl-label">Komoditas</label>
+          <select id="sel-kom-daerah" onchange="renderDaerahBars()"></select>
+        </div>
+        <div class="ctrl-group">
+          <label class="ctrl-label">Urutan</label>
+          <div class="model-toggle">
+            <button class="mtog" id="sort-asc" onclick="setSort('asc')">Terendah ↑</button>
+            <button class="mtog active" id="sort-desc" onclick="setSort('desc')">Tertinggi ↓</button>
+          </div>
+        </div>
+      </div>
+      <div id="daerah-bars-wrap" class="prov-bars-outer">
+        <div id="daerah-bars-content" class="prov-bars-grid"></div>
+      </div>
+      <div class="legend-scale">
+        <span class="ls-low">Lebih Murah dari Nasional</span>
+        <div class="ls-bar"></div>
+        <span class="ls-high">Lebih Mahal dari Nasional</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-wrap" id="tabel">
+    <div class="section-inner">
+      <div class="section-head">
+        <div class="section-label">Tabel Data Lengkap</div>
+        <div class="section-title">Historis & Prediksi LightGBM</div>
+        <p class="section-sub" id="table-subtitle">Data nasional terbaru, prediksi sesuai rentang pilihan, dan selisih harga daerah pilihan terhadap nasional.</p>
+      </div>
+      <div class="tbl-controls">
+        <input type="text" id="tbl-search" placeholder="🔍 Cari komoditas..." oninput="renderTable()" class="search-input">
+        <select id="tbl-daerah" onchange="renderTable()"></select>
+      </div>
+      <div class="tbl-wrap">
+        <table id="main-table">
+          <thead>
+            <tr>
+              <th>Komoditas</th>
+              <th>Nasional Awal</th>
+              <th>Nasional Terakhir</th>
+              <th>Daerah Terakhir</th>
+              <th>Selisih Daerah</th>
+              <th>Pred. 1</th>
+              <th id="th-pred-final">Pred. 6 bulan</th>
+              <th>Tren Nasional</th>
+            </tr>
+          </thead>
+          <tbody id="tbl-body">
+            <tr><td colspan="8" class="tbl-loading">Memuat data...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-logo">🌾 PanganTrack</div>
+    <p>Sistem Prediksi Harga Pangan Nasional & Daerah · Model LightGBM</p>
+    <p class="footer-sub">Politeknik Elektronika Negeri Surabaya · Program Studi Sains Data Terapan · 2026</p>
+    <div class="footer-tags">
+      <span>LightGBM</span><span>Dataset Gabungan</span>
+      <span>Nasional vs Daerah</span><span>Dashboard Interaktif</span><span>Prediksi 1–12 Bulan</span>
+      <span>Django REST API Ready</span>
+    </div>
+  </footer>
+
+  <div id="chart-tooltip" class="chart-tooltip hidden"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/script.js?v=2"></script>
+</body>
+</html>

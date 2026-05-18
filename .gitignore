@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.Python
+venv/
+.venv/
+env/
+
+# Environment & secrets
+.env
+.env.local
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# MLflow
+mlruns/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Logs
+logs/
+*.log
+
+# Data & notebooks
+data/
+notebooks/
+
+# Testing & misc
+src/
+tests/

@@ -36,7 +36,6 @@ MODEL_DIR = Path(__file__).resolve().parent.parent / "models"
 
 # ── Load model & encoder (sekali saat import) ────────────────────────────────
 model        = joblib.load(MODEL_DIR / "lgbm_final.joblib")
-scaler       = joblib.load(MODEL_DIR / "scaler.joblib")
 le_wilayah   = joblib.load(MODEL_DIR / "le_wilayah.joblib")
 le_komoditas = joblib.load(MODEL_DIR / "le_komoditas.joblib")
 
@@ -100,6 +99,15 @@ def _forecast(wilayah: str, komoditas: str, n_bulan: int) -> List[dict]:
     wilayah_enc   = int(le_wilayah.transform([wilayah])[0])
     komoditas_enc = int(le_komoditas.transform([komoditas])[0])
 
+    folder_name = komoditas.replace(' ', '_').replace('/', '-')
+    scaler_path = MODEL_DIR / "per_komoditas" / folder_name / "scaler.joblib"
+    if not scaler_path.exists():
+        scaler_path = MODEL_DIR / "scaler.joblib"
+        if not scaler_path.exists():
+            raise HTTPException(status_code=500, detail=f"Scaler tidak ditemukan untuk komoditas {komoditas}")
+    
+    scaler_komoditas = joblib.load(scaler_path)
+
     harga_history = _get_last_prices(wilayah, komoditas, n=3)
     lag1, lag2, lag3 = harga_history[-1], harga_history[-2], harga_history[-3]
     rolling3 = float(np.mean(harga_history))
@@ -126,7 +134,7 @@ def _forecast(wilayah: str, komoditas: str, n_bulan: int) -> List[dict]:
             "harga_rolling3": rolling3,
         }])
 
-        row_scaled = pd.DataFrame(scaler.transform(row[FITUR]), columns=FITUR)
+        row_scaled = pd.DataFrame(scaler_komoditas.transform(row[FITUR]), columns=FITUR)
         pred_harga = float(model.predict(row_scaled)[0])
 
         hasil.append({

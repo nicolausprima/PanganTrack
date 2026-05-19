@@ -1,3 +1,4 @@
+
 import sys
 import logging
 from pathlib import Path
@@ -8,6 +9,7 @@ if str(API_DIR) not in sys.path:
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from routes.predict import router
 from configs.database import init_db
 
@@ -50,3 +52,9 @@ def debug():
         "model_exists": (api_dir / "models" / "lgbm_final.joblib").exists(),
         "csv_exists": (root_dir / "data" / "processed" / "harga_gabungan.csv").exists(),
     }
+
+# Serve frontend static files for local development
+root_dir = Path(__file__).resolve().parent.parent
+frontend_dir = root_dir / "frontend"
+if frontend_dir.exists():
+    app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="static")

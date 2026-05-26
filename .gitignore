@@ -43,3 +43,8 @@ notebooks/
 # Testing & misc
 src/
 tests/
+
+# Agent configuration
+AGENTS.md
+.antigravity*
+.qodo/

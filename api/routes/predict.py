@@ -38,6 +38,12 @@ MODEL_DIR = Path(__file__).resolve().parent.parent / "models"
 le_wilayah   = joblib.load(MODEL_DIR / "le_wilayah.joblib")
 le_komoditas = joblib.load(MODEL_DIR / "le_komoditas.joblib")
 
+try:
+    with open(MODEL_DIR / "per_komoditas_params.json", "r") as f:
+        per_komoditas_params = json.load(f)
+except FileNotFoundError:
+    per_komoditas_params = {}
+
 WILAYAH_SET   = set(le_wilayah.classes_.tolist())
 KOMODITAS_SET = set(le_komoditas.classes_.tolist())
 
@@ -45,6 +51,8 @@ FITUR = [
     "tahun", "bulan", "kuartal",
     "wilayah_enc", "komoditas_enc",
     "harga_lag1", "harga_lag2", "harga_lag3", "harga_rolling3",
+    "harga_lag12", "sin_bulan", "cos_bulan", "is_lebaran_month",
+    "tren_index", "harga_rolling12",
 ]
 
 # ── Load dataset ──────────────────────────────────────────────────────────────
@@ -75,7 +83,7 @@ def _icon_for(kom: str) -> str:
     return "📦"
 
 
-def _get_last_prices(wilayah: str, komoditas: str, n: int = 3) -> List[float]:
+def _get_last_prices(wilayah: str, komoditas: str, n: int = 12) -> List[float]:
     subset = (
         dataset[(dataset["wilayah"] == wilayah) & (dataset["komoditas"] == komoditas)]
         .sort_values("tanggal")
@@ -84,9 +92,16 @@ def _get_last_prices(wilayah: str, komoditas: str, n: int = 3) -> List[float]:
     if len(subset) < n:
         raise HTTPException(
             status_code=404,
-            detail=f"Data historis tidak cukup untuk {komoditas} di {wilayah}",
+            detail=f"Data historis tidak cukup untuk {komoditas} di {wilayah} (butuh minimal {n} bulan)",
         )
     return subset["harga"].iloc[-n:].tolist()
+
+
+def _is_lebaran(tahun: int, bulan: int) -> int:
+    lebaran_months = {
+        2019: 6, 2020: 5, 2021: 5, 2022: 5, 2023: 4, 2024: 4, 2025: 3, 2026: 3, 2027: 2, 2028: 2
+    }
+    return 1 if lebaran_months.get(tahun) == bulan else 0
 
 
 def _forecast(wilayah: str, komoditas: str, n_bulan: int) -> List[dict]:
@@ -100,61 +115,90 @@ def _forecast(wilayah: str, komoditas: str, n_bulan: int) -> List[dict]:
 
     folder_name = komoditas.replace(' ', '_').replace('/', '-')
     
-    # Load Scaler Dinamis
-    scaler_path = MODEL_DIR / "per_komoditas" / folder_name / "scaler.joblib"
-    if not scaler_path.exists():
-        scaler_path = MODEL_DIR / "scaler.joblib"
+    # Ambil tipe model
+    model_type = "lgbm"
+    if komoditas in per_komoditas_params:
+        model_type = per_komoditas_params[komoditas].get("model_type", "lgbm")
+
+    # Load Scaler & Model Dinamis berdasarkan tipe model
+    if model_type == "naive":
+        model_komoditas = None
+        scaler_komoditas = None
+    elif model_type == "ridge":
+        scaler_path = MODEL_DIR / "per_komoditas" / folder_name / "ridge_scaler.joblib"
+        model_path = MODEL_DIR / "per_komoditas" / folder_name / "ridge_model.joblib"
+        if not scaler_path.exists() or not model_path.exists():
+            raise HTTPException(status_code=500, detail=f"Ridge model/scaler tidak ditemukan untuk komoditas {komoditas}")
+        scaler_komoditas = joblib.load(scaler_path)
+        model_komoditas = joblib.load(model_path)
+    else:
+        scaler_path = MODEL_DIR / "per_komoditas" / folder_name / "scaler.joblib"
         if not scaler_path.exists():
-            raise HTTPException(status_code=500, detail=f"Scaler tidak ditemukan untuk komoditas {komoditas}")
-    scaler_komoditas = joblib.load(scaler_path)
+            scaler_path = MODEL_DIR / "scaler.joblib"
+            if not scaler_path.exists():
+                raise HTTPException(status_code=500, detail=f"Scaler tidak ditemukan untuk komoditas {komoditas}")
+        scaler_komoditas = joblib.load(scaler_path)
 
-    # Load Model Dinamis
-    model_path = MODEL_DIR / "per_komoditas" / folder_name / "lgbm_model.joblib"
-    if not model_path.exists():
-        model_path = MODEL_DIR / "lgbm_final.joblib"
+        model_path = MODEL_DIR / "per_komoditas" / folder_name / "lgbm_model.joblib"
         if not model_path.exists():
-            raise HTTPException(status_code=500, detail=f"Model tidak ditemukan untuk komoditas {komoditas}")
-    model_komoditas = joblib.load(model_path)
+            model_path = MODEL_DIR / "lgbm_final.joblib"
+            if not model_path.exists():
+                raise HTTPException(status_code=500, detail=f"Model tidak ditemukan untuk komoditas {komoditas}")
+        model_komoditas = joblib.load(model_path)
 
-    harga_history = _get_last_prices(wilayah, komoditas, n=3)
-    lag1, lag2, lag3 = harga_history[-1], harga_history[-2], harga_history[-3]
-    rolling3 = float(np.mean(harga_history))
+    harga_history = _get_last_prices(wilayah, komoditas, n=12)
 
-    last_date = (
-        dataset[(dataset["wilayah"] == wilayah) & (dataset["komoditas"] == komoditas)]
-        .dropna(subset=["harga"])["tanggal"]
-        .max()
-    )
+    subset_hist = dataset[
+        (dataset["wilayah"] == wilayah) & (dataset["komoditas"] == komoditas)
+    ].dropna(subset=["harga"])
+    
+    start_tren = len(subset_hist)
+    last_date = subset_hist["tanggal"].max()
     start_date = (last_date + relativedelta(months=1)).replace(day=1)
 
     hasil = []
     for i in range(n_bulan):
         tgl = start_date + relativedelta(months=i)
+        
+        # Hitung fitur musiman & tren secara dinamis
+        sin_bulan = float(np.sin(2 * np.pi * tgl.month / 12))
+        cos_bulan = float(np.cos(2 * np.pi * tgl.month / 12))
+        is_lebaran = _is_lebaran(tgl.year, tgl.month)
+        tren = start_tren + i
+        rolling12 = float(np.mean(harga_history[-12:]))
+        
         row = pd.DataFrame([{
-            "tahun":          tgl.year,
-            "bulan":          tgl.month,
-            "kuartal":        (tgl.month - 1) // 3 + 1,
-            "wilayah_enc":    wilayah_enc,
-            "komoditas_enc":  komoditas_enc,
-            "harga_lag1":     lag1,
-            "harga_lag2":     lag2,
-            "harga_lag3":     lag3,
-            "harga_rolling3": rolling3,
+            "tahun":            tgl.year,
+            "bulan":            tgl.month,
+            "kuartal":          (tgl.month - 1) // 3 + 1,
+            "wilayah_enc":      wilayah_enc,
+            "komoditas_enc":    komoditas_enc,
+            "harga_lag1":       harga_history[-1],
+            "harga_lag2":       harga_history[-2],
+            "harga_lag3":       harga_history[-3],
+            "harga_rolling3":   float(np.mean(harga_history[-3:])),
+            "harga_lag12":      harga_history[-12],
+            "sin_bulan":        sin_bulan,
+            "cos_bulan":        cos_bulan,
+            "is_lebaran_month": is_lebaran,
+            "tren_index":       tren,
+            "harga_rolling12":  rolling12,
         }])
 
-        # Ambil fitur secara dinamis sesuai yang dilatih pada scaler komoditas
-        expected_fitur = list(scaler_komoditas.feature_names_in_)
-        
-        row_scaled = pd.DataFrame(scaler_komoditas.transform(row[expected_fitur]), columns=expected_fitur)
-        pred_harga = float(model_komoditas.predict(row_scaled)[0])
+        if model_type == "naive":
+            pred_harga = float(harga_history[-1])
+        else:
+            expected_fitur = list(scaler_komoditas.feature_names_in_)
+            row_scaled = pd.DataFrame(scaler_komoditas.transform(row[expected_fitur]), columns=expected_fitur)
+            pred_harga = float(model_komoditas.predict(row_scaled)[0])
 
         hasil.append({
             "tanggal":        tgl.strftime("%Y-%m-%d"),
             "harga_prediksi": round(pred_harga, 0),
         })
 
-        lag3, lag2, lag1 = lag2, lag1, pred_harga
-        rolling3 = float(np.mean([lag1, lag2, lag3]))
+        # Tambahkan prediksi ke histori harga agar bisa digunakan sebagai lag berikutnya
+        harga_history.append(pred_harga)
 
     return hasil
 

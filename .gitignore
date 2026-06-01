@@ -13,10 +13,6 @@ env/
 .env
 .env.local
 
-# Jupyter
-.ipynb_checkpoints/
-*.ipynb
-
 # MLflow
 mlruns/
 
@@ -32,13 +28,6 @@ Thumbs.db
 # Logs
 logs/
 *.log
-
-# Data & notebooks
-data/*
-!data/processed/
-data/processed/*
-!data/processed/harga_gabungan.csv
-notebooks/
 
 # Testing & misc
 src/

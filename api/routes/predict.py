@@ -123,22 +123,40 @@ def _forecast(wilayah: str, komoditas: str, n_bulan: int) -> tuple:
     # Load Scaler & Model Dinamis berdasarkan tipe model
     if model_type == "naive":
         model_komoditas = None
-        scaler_komoditas = None
+        scaler_robust = None
+        scaler_standard = None
     elif model_type == "ridge":
-        scaler_path = MODEL_DIR / "per_komoditas" / folder_name / "ridge_scaler.joblib"
+        # 1. Load RobustScaler
+        scaler_robust_path = MODEL_DIR / "per_komoditas" / folder_name / "scaler.joblib"
+        if not scaler_robust_path.exists():
+            scaler_robust_path = MODEL_DIR / "scaler.joblib"
+        if not scaler_robust_path.exists():
+            raise HTTPException(status_code=500, detail=f"RobustScaler tidak ditemukan untuk komoditas {komoditas}")
+        scaler_robust = joblib.load(scaler_robust_path)
+
+        # 2. Load StandardScaler (ridge_scaler.joblib)
+        scaler_standard_path = MODEL_DIR / "per_komoditas" / folder_name / "ridge_scaler.joblib"
+        if not scaler_standard_path.exists():
+            raise HTTPException(status_code=500, detail=f"Ridge scaler tidak ditemukan untuk komoditas {komoditas}")
+        scaler_standard = joblib.load(scaler_standard_path)
+
+        # 3. Load Ridge model
         model_path = MODEL_DIR / "per_komoditas" / folder_name / "ridge_model.joblib"
-        if not scaler_path.exists() or not model_path.exists():
-            raise HTTPException(status_code=500, detail=f"Ridge model/scaler tidak ditemukan untuk komoditas {komoditas}")
-        scaler_komoditas = joblib.load(scaler_path)
+        if not model_path.exists():
+            raise HTTPException(status_code=500, detail=f"Ridge model tidak ditemukan untuk komoditas {komoditas}")
         model_komoditas = joblib.load(model_path)
     else:
-        scaler_path = MODEL_DIR / "per_komoditas" / folder_name / "scaler.joblib"
-        if not scaler_path.exists():
-            scaler_path = MODEL_DIR / "scaler.joblib"
-            if not scaler_path.exists():
-                raise HTTPException(status_code=500, detail=f"Scaler tidak ditemukan untuk komoditas {komoditas}")
-        scaler_komoditas = joblib.load(scaler_path)
+        # LGBM expects RobustScaled(features)
+        # 1. Load RobustScaler (scaler.joblib)
+        scaler_robust_path = MODEL_DIR / "per_komoditas" / folder_name / "scaler.joblib"
+        if not scaler_robust_path.exists():
+            scaler_robust_path = MODEL_DIR / "scaler.joblib"
+        if not scaler_robust_path.exists():
+            raise HTTPException(status_code=500, detail=f"RobustScaler tidak ditemukan untuk komoditas {komoditas}")
+        scaler_robust = joblib.load(scaler_robust_path)
+        scaler_standard = None
 
+        # 2. Load LGBM model
         model_path = MODEL_DIR / "per_komoditas" / folder_name / "lgbm_model.joblib"
         if not model_path.exists():
             model_path = MODEL_DIR / "lgbm_final.joblib"
@@ -188,9 +206,22 @@ def _forecast(wilayah: str, komoditas: str, n_bulan: int) -> tuple:
         if model_type == "naive":
             pred_harga = float(harga_history[-1])
         else:
-            expected_fitur = list(scaler_komoditas.feature_names_in_)
-            row_scaled = pd.DataFrame(scaler_komoditas.transform(row[expected_fitur]), columns=expected_fitur)
-            pred_harga = float(model_komoditas.predict(row_scaled)[0])
+            # 1. Apply RobustScaler
+            expected_fitur_robust = list(scaler_robust.feature_names_in_)
+            row_robust = pd.DataFrame(scaler_robust.transform(row[expected_fitur_robust]), columns=expected_fitur_robust)
+
+            # 2. Apply StandardScaler if Ridge
+            if model_type == "ridge":
+                expected_fitur_std = list(scaler_standard.feature_names_in_)
+                row_scaled = pd.DataFrame(scaler_standard.transform(row_robust[expected_fitur_std]), columns=expected_fitur_std)
+            else:
+                row_scaled = row_robust
+
+            # 3. Predict
+            if model_type == "ridge":
+                pred_harga = float(model_komoditas.predict(row_scaled.values)[0])
+            else:
+                pred_harga = float(model_komoditas.predict(row_scaled)[0])
 
         hasil.append({
             "tanggal":        tgl.strftime("%Y-%m-%d"),

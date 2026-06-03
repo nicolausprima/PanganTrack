@@ -12,7 +12,9 @@
    FastAPI di port yang sama). Ganti ke 'http://127.0.0.1:8000' kalau
    frontend dibuka langsung dari file:// atau dari live-server lain. */
 const API_CONFIG = {
-  BASE_URL: '',
+  BASE_URL: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? ''
+    : 'https://pangantrack-production.up.railway.app',
   ENDPOINTS: {
     bootstrap:    '/api/bootstrap',
     predict:      '/api/predict',

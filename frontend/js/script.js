@@ -162,6 +162,16 @@ function iconFor(kom) {
 function safeText(txt) {
   return String(txt).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
 }
+function modelLabel(kom) {
+  const mt = PANGAN_DATA.model_types?.[kom] || 'lgbm';
+  if (mt === 'ridge') return 'Ridge';
+  if (mt === 'naive') return 'Naive';
+  return 'LightGBM';
+}
+function updateModelBadge(kom) {
+  const el = document.getElementById('model-label');
+  if (el) el.textContent = modelLabel(kom);
+}
 
 /* Wrapper sinkron untuk akses prediksi LightGBM yang sudah di-prefetch dari API.
    Saat cache miss, fallback ke flat-line dari nilai terakhir series — supaya
@@ -280,6 +290,7 @@ function onParamChange() {
   state.periods = Number(document.getElementById('sel-period')?.value || state.periods || 6);
   document.getElementById('sel-kom-daerah').value = state.komoditas;
   document.getElementById('tbl-daerah').value = state.daerah;
+  updateModelBadge(state.komoditas);
   runPrediction();
   renderDaerahBars();
   renderTable();
@@ -305,6 +316,8 @@ async function runPrediction() {
   state.komoditas = kom;
   state.daerah = daerah;
   state.periods = Number(document.getElementById('sel-period')?.value || state.periods || 6);
+
+  updateModelBadge(kom);
 
   const btn = document.getElementById('btn-run');
   const txt = document.getElementById('run-txt');
@@ -536,15 +549,16 @@ function renderTrendChart(kom, daerah) {
       dots += `<circle class="hover-dot" cx="${sx(i).toFixed(1)}" cy="${sy(histDaerah[i]).toFixed(1)}" r="5" fill="#378ADD" opacity="0.0" onmousemove="showTooltip(event, '<strong>${safeText(kom)}</strong><br>${safeText(daerah)} · ${label}<br>${rp(histDaerah[i])}<br>Selisih: ${changeLabel(diff)}')" onmouseleave="hideTooltip()"/>`;
     }
   }
+  const mLabel = modelLabel(kom);
   predNas.forEach((v, i) => {
     if (!state.trendLayers.prediksi) return;
     const label = futureLabels()[i];
-    dots += `<circle class="hover-dot" cx="${sx(histNas.length + i).toFixed(1)}" cy="${sy(v).toFixed(1)}" r="5" fill="#EF9F27" opacity="0.0" onmousemove="showTooltip(event, '<strong>Prediksi LightGBM</strong><br>Nasional · ${label}<br>${rp(v)}')" onmouseleave="hideTooltip()"/>`;
+    dots += `<circle class="hover-dot" cx="${sx(histNas.length + i).toFixed(1)}" cy="${sy(v).toFixed(1)}" r="5" fill="#EF9F27" opacity="0.0" onmousemove="showTooltip(event, '<strong>Prediksi ${mLabel}</strong><br>Nasional · ${label}<br>${rp(v)}')" onmouseleave="hideTooltip()"/>`;
   });
   predDaerah.forEach((v, i) => {
     if (!state.trendLayers.prediksi || !state.trendLayers.daerah) return;
     const label = futureLabels()[i];
-    dots += `<circle class="hover-dot" cx="${sx(histDaerah.length + i).toFixed(1)}" cy="${sy(v).toFixed(1)}" r="5" fill="#7C9CFF" opacity="0.0" onmousemove="showTooltip(event, '<strong>Prediksi LightGBM</strong><br>${safeText(daerah)} · ${label}<br>${rp(v)}')" onmouseleave="hideTooltip()"/>`;
+    dots += `<circle class="hover-dot" cx="${sx(histDaerah.length + i).toFixed(1)}" cy="${sy(v).toFixed(1)}" r="5" fill="#7C9CFF" opacity="0.0" onmousemove="showTooltip(event, '<strong>Prediksi ${mLabel}</strong><br>${safeText(daerah)} · ${label}<br>${rp(v)}')" onmouseleave="hideTooltip()"/>`;
   });
 
   const latestDiff = histDaerah.length ? pct(last(histDaerah), last(histNas)) : null;

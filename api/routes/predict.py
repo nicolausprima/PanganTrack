@@ -104,7 +104,7 @@ def _is_lebaran(tahun: int, bulan: int) -> int:
     return 1 if lebaran_months.get(tahun) == bulan else 0
 
 
-def _forecast(wilayah: str, komoditas: str, n_bulan: int) -> List[dict]:
+def _forecast(wilayah: str, komoditas: str, n_bulan: int) -> tuple:
     if wilayah not in WILAYAH_SET:
         raise HTTPException(status_code=400, detail=f"Wilayah '{wilayah}' tidak dikenali")
     if komoditas not in KOMODITAS_SET:
@@ -200,7 +200,7 @@ def _forecast(wilayah: str, komoditas: str, n_bulan: int) -> List[dict]:
         # Tambahkan prediksi ke histori harga agar bisa digunakan sebagai lag berikutnya
         harga_history.append(pred_harga)
 
-    return hasil
+    return hasil, model_type
 
 
 @router.get("/wilayah", summary="List semua wilayah")
@@ -261,6 +261,14 @@ def bootstrap(nasional_label: str = Query("Nasional")):
     daerah_data   = {area: {kom: _series_for(area, kom) for kom in komoditas_list} for area in areas}
     icon_map      = {kom: _icon_for(kom) for kom in komoditas_list}
 
+    # Mapping komoditas -> model_type untuk frontend
+    model_types = {}
+    for kom in komoditas_list:
+        if kom in per_komoditas_params:
+            model_types[kom] = per_komoditas_params[kom].get("model_type", "lgbm")
+        else:
+            model_types[kom] = "lgbm"
+
     return {
         "labels":         labels,
         "areas":          areas,
@@ -269,12 +277,13 @@ def bootstrap(nasional_label: str = Query("Nasional")):
         "komoditas_icon": icon_map,
         "nasional":       nasional_data,
         "daerah":         daerah_data,
+        "model_types":    model_types,
     }
 
 
-@router.post("/predict", response_model=PredictResponse, summary="Prediksi harga ke depan")
+@router.post("/predict", summary="Prediksi harga ke depan")
 def predict(req: PredictRequest, db=Depends(get_db)):
-    hasil = _forecast(req.wilayah, req.komoditas, req.n_bulan)
+    hasil, model_type = _forecast(req.wilayah, req.komoditas, req.n_bulan)
 
     if HAS_DB and db is not None:
         try:
@@ -290,10 +299,11 @@ def predict(req: PredictRequest, db=Depends(get_db)):
             db.rollback()
 
     return {
-        "wilayah":   req.wilayah,
-        "komoditas": req.komoditas,
-        "n_bulan":   req.n_bulan,
-        "prediksi":  hasil,
+        "wilayah":    req.wilayah,
+        "komoditas":  req.komoditas,
+        "n_bulan":    req.n_bulan,
+        "prediksi":   hasil,
+        "model_type": model_type,
     }
 
 
@@ -302,21 +312,23 @@ def predict_bulk(items: List[PredictRequest] = Body(...)):
     out = []
     for it in items:
         try:
-            hasil = _forecast(it.wilayah, it.komoditas, it.n_bulan)
+            hasil, model_type = _forecast(it.wilayah, it.komoditas, it.n_bulan)
             out.append({
-                "wilayah":   it.wilayah,
-                "komoditas": it.komoditas,
-                "n_bulan":   it.n_bulan,
-                "prediksi":  hasil,
-                "error":     None,
+                "wilayah":    it.wilayah,
+                "komoditas":  it.komoditas,
+                "n_bulan":    it.n_bulan,
+                "prediksi":   hasil,
+                "model_type": model_type,
+                "error":      None,
             })
         except HTTPException as e:
             out.append({
-                "wilayah":   it.wilayah,
-                "komoditas": it.komoditas,
-                "n_bulan":   it.n_bulan,
-                "prediksi":  [],
-                "error":     e.detail,
+                "wilayah":    it.wilayah,
+                "komoditas":  it.komoditas,
+                "n_bulan":    it.n_bulan,
+                "prediksi":   [],
+                "model_type": None,
+                "error":      e.detail,
             })
     return {"results": out}
 

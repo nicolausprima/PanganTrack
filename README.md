@@ -46,4 +46,10 @@ sehingga tidak perlu live-server terpisah dan tidak ada masalah CORS.
 | POST | `/api/predict-bulk`  | Batch prediksi banyak request sekaligus |
 | GET  | `/api/prediksi-log`  | History prediksi (butuh MySQL) |
 
+## Contributors
+
+- Nicolaus Prima Dharma
+- May Rizky Ardanata
+- Leandro Jovan Valfiano
+
 Dokumentasi interaktif Swagger: **http://127.0.0.1:8000/docs**

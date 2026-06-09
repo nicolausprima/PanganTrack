@@ -113,7 +113,7 @@ uvicorn api.main:app --reload --port 8000
 ```
 
 Setelah server aktif:
-*   Akses **Dashboard Aplikasi:** [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
+*   Akses **Dashboard Aplikasi:** [https://pangan-track.vercel.app/](https://pangan-track.vercel.app/)
 *   Akses **Dokumentasi API Swagger:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
 ---

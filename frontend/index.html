@@ -127,7 +127,7 @@
           <div class="sc-meta">dibanding Nasional pada periode sama</div>
         </div>
         <div class="sum-card">
-          <div class="sc-tag">Prediksi Nasional</div>
+          <div class="sc-tag" id="sc-pred-tag">Prediksi Nasional</div>
           <div class="sc-price" id="sc-pred-price">—</div>
           <div class="sc-change" id="sc-pred-change">—</div>
           <div class="sc-meta" id="sc-pred-period">rentang prediksi</div>
@@ -230,7 +230,7 @@
       </div>
       <div class="tbl-controls">
         <input type="text" id="tbl-search" placeholder="🔍 Cari komoditas..." oninput="renderTable()" class="search-input">
-        <select id="tbl-daerah" onchange="renderTable()"></select>
+        <select id="tbl-daerah" onchange="onTableDaerahChange()"></select>
       </div>
       <div class="tbl-wrap">
         <table id="main-table">

@@ -1,55 +1,139 @@
-# PanganTrack
+# 🌾 PanganTrack: Sistem Prediksi Harga Komoditas Pangan
 
-Dashboard prediksi harga komoditas pangan nasional & daerah berbasis **LightGBM**.
+[![Python Version](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-009688.svg?style=flat&logo=FastAPI&logoColor=white)](https://fastapi.tiangolo.com/)
+[![LightGBM](https://img.shields.io/badge/LightGBM-4.3+-ff6f00.svg)](https://github.com/microsoft/LightGBM)
+[![Platform Vercel](https://img.shields.io/badge/Frontend-Vercel-black.svg?style=flat&logo=vercel&logoColor=white)](https://vercel.com/)
+[![Platform Railway](https://img.shields.io/badge/Backend-Railway-0B0D19.svg?style=flat&logo=railway&logoColor=white)](https://railway.app/)
 
-## Struktur
+**PanganTrack** adalah dashboard interaktif berbasis web untuk memantau dan memproyeksikan harga 21 komoditas pangan pokok di 9 wilayah Indonesia (serta tingkat nasional) hingga 24 bulan ke depan. Proyek ini dikembangkan menggunakan model **Machine Learning (LightGBM & Ridge Regression)** yang di-deploy dengan backend **FastAPI** dan frontend **Vanilla HTML/CSS/JS**.
 
-```
+---
+
+## ✨ Fitur Utama
+
+*   **Prediksi Rekursif Multi-Bulan:** Memproyeksikan harga komoditas pangan hingga 24 bulan ke depan dengan metode *recursive forecasting*.
+*   **Mekanisme Fallback Cerdas:** Secara otomatis memilih model terbaik per komoditas:
+    *   **LightGBM** (model utama dengan akurasi tinggi pada pola non-linear).
+    *   **Ridge Regression** (untuk komoditas volatile tinggi untuk mencegah *overfitting*).
+    *   **Naive Baseline** (sebagai baseline pembanding).
+*   **Dashboard Interaktif:** Visualisasi tren harga historis vs prediksi menggunakan grafik interaktif dan tabel perbandingan wilayah.
+*   **Peringatan Dini & Rekomendasi:** Menyediakan insight tren otomatis (naik/turun) untuk membantu pembuat kebijakan mengantisipasi inflasi daerah.
+*   **Log Prediksi Real-Time:** Logging otomatis setiap request prediksi ke database MySQL (opsional).
+
+---
+
+## 🛠️ Arsitektur Teknologi
+
+*   **Machine Learning:** LightGBM, Ridge Regression, Scikit-Learn, Joblib, RobustScaler, StandardScaler.
+*   **Backend:** FastAPI (Python 3.11), SQLAlchemy, Uvicorn, Pydantic.
+*   **Frontend:** Vanilla HTML5, Vanilla CSS3 (modern glassmorphism), Vanilla JavaScript, Chart.js.
+*   **Database:** MySQL (opsional untuk menyimpan riwayat prediksi).
+
+---
+
+## 📂 Struktur Proyek
+
+```text
 PanganTrack/
-├─ api/              # FastAPI: endpoint prediksi & bootstrap data
-├─ frontend/         # Static dashboard (HTML/CSS/JS vanilla)
-├─ data/processed/   # Dataset hasil preprocessing
-├─ models/           # (legacy) folder model — gunakan api/models/ saja
-├─ notebooks/        # 01..04: convert, EDA, preprocessing, forecasting
-└─ requirements.txt
+├── api/                    # Backend FastAPI
+│   ├── configs/            # Konfigurasi database & ORM
+│   ├── models/             # Model & Scaler tersimpan (.joblib)
+│   ├── routes/             # Endpoint API (predict, bootstrap, dll.)
+│   ├── schemas/            # Skema validasi request/response Pydantic
+│   └── main.py             # Entrypoint aplikasi FastAPI & static hosting
+├── frontend/               # Frontend Dashboard (HTML, CSS, JS)
+│   ├── css/                # Styling (Glassmorphism & responsive layout)
+│   ├── js/                 # Logika interaktivitas & fetch API
+│   └── index.html          # Halaman utama dashboard
+├── data/
+│   ├── raw/                # Data mentah
+│   └── processed/          # Dataset hasil preprocessing & split per komoditas
+├── notebooks/              # Jupyter Notebooks (E2E Data Pipeline)
+│   ├── 01_Convert_XLSX.ipynb
+│   ├── 02_EDA.ipynb
+│   ├── 03_Preprocessing.ipynb
+│   ├── 04_Forecasting.ipynb
+│   └── 05_Train_Per_Komoditas.ipynb
+├── requirements.txt        # Daftar dependency Python
+└── README.md
 ```
 
-## Setup
+---
 
+## 🚀 Panduan Instalasi & Menjalankan Aplikasi
+
+Ikuti langkah-langkah di bawah ini untuk menjalankan PanganTrack di komputer lokal Anda:
+
+### 1. Prasyarat (Prerequisites)
+Pastikan Anda sudah menginstal **Python 3.11** di sistem Anda.
+
+### 2. Kloning Repositori
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env       # isi DB_PASSWORD jika MySQL aktif
+git clone https://github.com/nicolausprima/PanganTrack.git
+cd PanganTrack
 ```
 
-## Jalankan
+### 3. Setup Virtual Environment (Venv)
 
+*   **Windows (Command Prompt / PowerShell):**
+    ```bash
+    python -m venv .venv
+    .venv\Scripts\activate
+    ```
+*   **Linux / macOS:**
+    ```bash
+    python -m venv .venv
+    source .venv/bin/activate
+    ```
+
+### 4. Instalasi Dependency
+```bash
+pip install -r requirements.txt
+```
+
+### 5. Konfigurasi Environment Variable (`.env`)
+Salin file `.env.example` menjadi `.env` dan sesuaikan konfigurasinya jika Anda ingin mengaktifkan database MySQL.
+
+*   **Windows:**
+    ```cmd
+    copy .env.example .env
+    ```
+*   **Linux / macOS:**
+    ```bash
+    cp .env.example .env
+    ```
+
+> 💡 **Catatan:** Penggunaan MySQL bersifat **opsional**. Jika Anda tidak mengisi konfigurasi database di file `.env`, aplikasi tetap akan berjalan normal dan proses logging prediksi akan dilewati secara otomatis.
+
+### 6. Jalankan Server Aplikasi
+Jalankan perintah berikut pada direktori root proyek untuk mengaktifkan server FastAPI:
 ```bash
 uvicorn api.main:app --reload --port 8000
 ```
 
-Buka **http://127.0.0.1:8000/** — frontend di-serve oleh FastAPI di host yang sama,
-sehingga tidak perlu live-server terpisah dan tidak ada masalah CORS.
+Setelah server aktif:
+*   Akses **Dashboard Aplikasi:** [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
+*   Akses **Dokumentasi API Swagger:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
-> MySQL **opsional**. Jika tidak tersedia, API tetap jalan; logging prediksi saja
-> yang dilewati.
+---
 
-## Endpoint API
+## 🔌 Dokumentasi Endpoint API Utama
 
-| Method | Path | Keterangan |
-|---|---|---|
-| GET  | `/api/bootstrap`     | Bulk data untuk dashboard (labels, areas, komoditas, harga nasional & daerah) |
-| GET  | `/api/wilayah`       | List wilayah unik di dataset |
-| GET  | `/api/komoditas`     | List komoditas unik di dataset |
-| GET  | `/api/history`       | History harga aktual `(?wilayah=&komoditas=)` |
-| POST | `/api/predict`       | Prediksi 1 (wilayah, komoditas, n_bulan) |
-| POST | `/api/predict-bulk`  | Batch prediksi banyak request sekaligus |
-| GET  | `/api/prediksi-log`  | History prediksi (butuh MySQL) |
+| Method | Endpoint | Fungsi |
+| :--- | :--- | :--- |
+| `GET` | `/api/bootstrap` | Memuat semua data awal dashboard (wilayah, komoditas, harga nasional, & daerah). |
+| `GET` | `/api/wilayah` | Mengambil daftar wilayah yang tersedia di dataset. |
+| `GET` | `/api/komoditas` | Mengambil daftar komoditas pangan yang terdaftar. |
+| `GET` | `/api/history` | Mengambil data histori harga aktual berdasarkan wilayah & komoditas. |
+| `POST` | `/api/predict` | Melakukan forecasting harga komoditas di wilayah tertentu untuk `N` bulan ke depan. |
+| `POST` | `/api/predict-bulk` | Melakukan forecasting dalam jumlah banyak sekaligus (batch prediction). |
+| `GET` | `/api/prediksi-log` | Mengambil catatan histori log prediksi yang disimpan (memerlukan MySQL). |
 
-## Contributors
+---
 
-- Nicolaus Prima Dharma
-- May Rizky Ardanata
-- Leandro Jovan Valfiano
+## 👥 Anggota Kelompok 9
 
-Dokumentasi interaktif Swagger: **http://127.0.0.1:8000/docs**
+*   **May Rizky Ardanata** (3324600005) - *Frontend Developer*
+*   **Nicolaus Prima Dharma** (3324600016) - *Backend Developer*
+*   **Leandro Jovan Falviano** (3324600022) - *Machine Learning & Modeling*

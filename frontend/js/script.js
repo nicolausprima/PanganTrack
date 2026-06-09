@@ -49,11 +49,11 @@ async function bootstrapFromAPI() {
   Object.assign(window.PANGAN_DATA, data);
 }
 
-async function prefetchPredictions(periods) {
+async function prefetchPredictions(periods, specificDaerah = null) {
   /* Pre-fetch prediksi LightGBM untuk komoditas terpilih (nasional + daerah aktif)
-     + semua komoditas untuk tabel (nasional saja, supaya ringan). */
+     + semua komoditas untuk tabel (daerah terpilih jika ada, fallback ke nasional). */
   const kom    = state.komoditas;
-  const daerah = state.daerah;
+  const daerah = specificDaerah || state.daerah;
   const nasionalLabel = PANGAN_DATA.nasional_label || 'Nasional';
 
   const requests = [];
@@ -62,9 +62,15 @@ async function prefetchPredictions(periods) {
   if (PANGAN_DATA.daerah[daerah]?.[kom]) {
     requests.push({ wilayah: daerah, komoditas: kom, n_bulan: periods });
   }
-  // Untuk tabel: prediksi nasional semua komoditas.
+  // Untuk tabel: prediksi daerah terpilih (atau nasional jika data tidak ada) semua komoditas.
   PANGAN_DATA.komoditas_list.forEach(k => {
-    if (k !== kom) requests.push({ wilayah: nasionalLabel, komoditas: k, n_bulan: periods });
+    if (k !== kom) {
+      if (PANGAN_DATA.daerah[daerah]?.[k]) {
+        requests.push({ wilayah: daerah, komoditas: k, n_bulan: periods });
+      } else {
+        requests.push({ wilayah: nasionalLabel, komoditas: k, n_bulan: periods });
+      }
+    }
   });
 
   const need = requests.filter(r => !predictionCache.has(predKey(r.wilayah, r.komoditas, r.n_bulan)));
@@ -346,13 +352,20 @@ function updateSummaryCards(kom, daerah) {
   const nas = PANGAN_DATA.nasional[kom];
   const ds = PANGAN_DATA.daerah[daerah]?.[kom];
   const nasionalLabel = PANGAN_DATA.nasional_label || 'Nasional';
-  const pred = lightGBMForecast(nas, state.periods, nasionalLabel, kom);
+
+  // Gunakan data daerah jika tersedia untuk prediksi, jika tidak gunakan data nasional
+  const hasDaerahData = ds && ds.length > 0;
+  const activeSeries = hasDaerahData ? ds : nas;
+  const activeWilayah = hasDaerahData ? daerah : nasionalLabel;
+
+  const pred = lightGBMForecast(activeSeries, state.periods, activeWilayah, kom);
+  const lastActive = last(activeSeries);
   const lastNas = last(nas);
   const lastDaerah = ds ? last(ds) : null;
   const trendNas = pct(lastNas, nas[0]);
   const diffDaerah = ds ? pct(lastDaerah, lastNas) : null;
   const predFinal = pred[pred.length - 1];
-  const predChange = pct(predFinal, lastNas);
+  const predChange = (predFinal !== null && lastActive !== null) ? pct(predFinal, lastActive) : null;
   const lastLabel = labelPretty(PANGAN_DATA.labels[PANGAN_DATA.labels.length - 1]);
 
   document.getElementById('sc-nas-now').textContent = rp(lastNas);
@@ -365,6 +378,10 @@ function updateSummaryCards(kom, daerah) {
     ? `<span class="${changeClass(diffDaerah)}">${changeLabel(diffDaerah)}</span> vs nasional`
     : 'Data daerah tidak tersedia';
 
+  const predTagEl = document.getElementById('sc-pred-tag');
+  if (predTagEl) {
+    predTagEl.textContent = hasDaerahData ? `Prediksi ${daerah}` : `Prediksi Nasional`;
+  }
   document.getElementById('sc-pred-price').textContent = rp(predFinal);
   document.getElementById('sc-pred-change').innerHTML = `<span class="${changeClass(predChange)}">${changeLabel(predChange)}</span> dari harga terakhir`;
   document.getElementById('sc-pred-period').textContent = `${futureLabels()[0]} → ${futureLabels()[futureLabels().length - 1]} (${periodLabel()})`;
@@ -701,6 +718,14 @@ function selectDaerah(daerah) {
   onParamChange();
 }
 
+async function onTableDaerahChange() {
+  const tblDaerah = document.getElementById('tbl-daerah').value;
+  const tbody = document.getElementById('tbl-body');
+  if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="tbl-loading">Memuat prediksi ${safeText(tblDaerah)}...</td></tr>`;
+  await prefetchPredictions(state.periods, tblDaerah);
+  renderTable();
+}
+
 function renderTable() {
   const daerah = document.getElementById('tbl-daerah')?.value || state.daerah;
   const predFinalHead = document.getElementById('th-pred-final');
@@ -716,9 +741,19 @@ function renderTable() {
     .map(kom => {
       const ns = PANGAN_DATA.nasional[kom];
       const ds = PANGAN_DATA.daerah[daerah]?.[kom];
-      const pred = lightGBMForecast(ns, state.periods, nasionalLabel, kom);
+
+      // Tampilkan prediksi daerah jika ada, jika tidak, tampilkan nasional
+      const hasDaerahData = ds && ds.length > 0;
+      const activeSeries = hasDaerahData ? ds : ns;
+      const activeWilayah = hasDaerahData ? daerah : nasionalLabel;
+
+      const pred = lightGBMForecast(activeSeries, state.periods, activeWilayah, kom);
       const tr = pct(last(ns), ns[0]);
       const diff = ds ? pct(last(ds), last(ns)) : null;
+      const lastActive = last(activeSeries);
+      const predPct0 = (pred[0] !== null && lastActive !== null) ? pct(pred[0], lastActive) : null;
+      const predPctFinal = (pred[pred.length - 1] !== null && lastActive !== null) ? pct(pred[pred.length - 1], lastActive) : null;
+
       return `
         <tr>
           <td><strong>${iconFor(kom)} ${safeText(kom)}</strong></td>
@@ -726,8 +761,8 @@ function renderTable() {
           <td><strong>${rp(last(ns))}</strong></td>
           <td>${ds ? rp(last(ds)) : '—'}</td>
           <td class="${changeClass(diff)}">${diff === null ? '—' : changeLabel(diff)}</td>
-          <td class="${changeClass(pct(pred[0], last(ns)))}">${rp(pred[0])}</td>
-          <td class="${changeClass(pct(pred[pred.length - 1], last(ns)))}">${rp(pred[pred.length - 1])}</td>
+          <td class="${changeClass(predPct0)}">${rp(pred[0])}</td>
+          <td class="${changeClass(predPctFinal)}">${rp(pred[pred.length - 1])}</td>
           <td style="white-space:nowrap">${buildSparkline(ns.slice(-12), changeClass(tr))}<span class="badge badge-${changeClass(tr)}" style="display:inline-block;vertical-align:middle;margin-left:4px">${changeLabel(tr)}</span></td>
         </tr>`;
     });

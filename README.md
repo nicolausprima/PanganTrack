@@ -137,3 +137,14 @@ Setelah server aktif:
 *   **May Rizky Ardanata** (3324600005) - *Frontend Developer*
 *   **Nicolaus Prima Dharma** (3324600016) - *Backend Developer*
 *   **Leandro Jovan Falviano** (3324600022) - *Machine Learning & Modeling*
+
+---
+
+## 🚀 Deployment (Render)
+
+Aplikasi ini sudah dikonfigurasi untuk dideploy ke [Render](https://render.com) menggunakan file `render.yaml`.
+1. Login ke dashboard Render.
+2. Buat **New** -> **Blueprint**.
+3. Hubungkan repositori GitHub ini.
+4. Render akan otomatis membaca file `render.yaml` dan melakukan deploy.
+*(Pastikan untuk mengatur variabel environment seperti `DATABASE_URL` di dashboard jika menggunakan MySQL eksternal).*

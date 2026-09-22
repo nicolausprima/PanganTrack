@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="css/style.css?v=2">
 </head>
 <body>
+  <div id="scroll-progress" class="scroll-progress-bar"></div>
 
   <nav id="navbar">
     <div class="nav-inner">
@@ -167,6 +168,9 @@
             <button class="chart-toggle active" id="tg-daerah" onclick="toggleTrendLayer('daerah')">Daerah</button>
             <button class="chart-toggle active" id="tg-prediksi" onclick="toggleTrendLayer('prediksi')">Prediksi</button>
             <button class="chart-toggle active" id="tg-selisih" onclick="toggleTrendLayer('selisih')">Highlight Selisih</button>
+            <button class="chart-toggle btn-chart-save" id="btn-save-chart" onclick="exportChartToPNG('svg-nasional', 'Tren_Harga_Pangan')" title="Simpan grafik sebagai gambar PNG">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Simpan Gambar
+            </button>
           </div>
           <div id="load-nas" class="chart-loading">Memuat grafik...</div>
           <svg id="svg-nasional" class="chart-svg" viewBox="0 0 640 260" preserveAspectRatio="xMidYMid meet"></svg>
@@ -181,6 +185,7 @@
             <div class="legend">
               <div class="leg"><div class="leg-dot blue"></div>Daerah</div>
               <div class="leg"><div class="leg-dot coral"></div>Nasional</div>
+              <button class="btn-icon-save" onclick="exportChartToPNG('svg-daerah-compare', 'Perbandingan_Daerah')" title="Simpan grafik daerah">📷</button>
             </div>
           </div>
           <div id="load-daerah" class="chart-loading">Pilih parameter & jalankan prediksi...</div>
@@ -231,6 +236,10 @@
       <div class="tbl-controls">
         <input type="text" id="tbl-search" placeholder="🔍 Cari komoditas..." oninput="renderTable()" class="search-input">
         <select id="tbl-daerah" onchange="onTableDaerahChange()"></select>
+        <button class="btn-export" id="btn-export-csv" onclick="exportTableToCSV()" title="Unduh data tabel dalam format CSV">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Ekspor CSV</span>
+        </button>
       </div>
       <div class="tbl-wrap">
         <table id="main-table">
@@ -266,6 +275,14 @@
   </footer>
 
   <div id="chart-tooltip" class="chart-tooltip hidden"></div>
+
+  <!-- Tombol Melayang Kembali ke Atas (Back-to-Top) -->
+  <button id="btn-back-to-top" class="back-to-top" title="Kembali ke atas" aria-label="Kembali ke atas" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+  </button>
+
+  <!-- Kontainer Notifikasi Toast Modern -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
   <script src="js/data.js"></script>
   <script src="js/script.js?v=2"></script>

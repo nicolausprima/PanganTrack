@@ -140,6 +140,109 @@ function avg(arr) {
 function gotoSection(id) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
 }
+
+/* Animasi angka bertahap (Smooth Counter Animation) */
+function animateCounter(elementOrId, targetValue, duration = 800, formatFn = null) {
+  const el = typeof elementOrId === 'string' ? document.getElementById(elementOrId) : elementOrId;
+  if (!el || targetValue === null || targetValue === undefined || isNaN(targetValue)) {
+    if (el) el.textContent = formatFn ? formatFn(targetValue) : (targetValue ?? '—');
+    return;
+  }
+
+  const target = Number(targetValue);
+  const start = el._currentVal !== undefined ? el._currentVal : 0;
+  el._currentVal = target;
+
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    el.textContent = formatFn ? formatFn(target) : target.toLocaleString('id-ID');
+    return;
+  }
+
+  const startTime = performance.now();
+  function update(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const easeProgress = 1 - Math.pow(1 - progress, 3);
+    const current = start + (target - start) * easeProgress;
+
+    if (formatFn) {
+      el.textContent = formatFn(Math.round(current));
+    } else {
+      el.textContent = Math.round(current).toLocaleString('id-ID');
+    }
+
+    if (progress < 1) {
+      requestAnimationFrame(update);
+    } else {
+      el.textContent = formatFn ? formatFn(target) : target.toLocaleString('id-ID');
+    }
+  }
+  requestAnimationFrame(update);
+}
+
+/* Inisialisasi progress bar scroll dan tombol back-to-top */
+function initScrollFeatures() {
+  const progressBar = document.getElementById('scroll-progress');
+  const backToTopBtn = document.getElementById('btn-back-to-top');
+  if (!progressBar && !backToTopBtn) return;
+
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      window.requestAnimationFrame(() => {
+        const winScroll = document.documentElement.scrollTop || document.body.scrollTop;
+        const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        const scrolled = height > 0 ? (winScroll / height) * 100 : 0;
+
+        if (progressBar) {
+          progressBar.style.width = Math.min(Math.max(scrolled, 0), 100) + '%';
+        }
+        if (backToTopBtn) {
+          if (winScroll > 320) {
+            backToTopBtn.classList.add('show');
+          } else {
+            backToTopBtn.classList.remove('show');
+          }
+        }
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }, { passive: true });
+}
+
+/* Sistem Toast Notifikasi Modern */
+function showToast(message, type = 'success', duration = 3200) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast-message toast-${type}`;
+
+  const iconMap = {
+    success: '✅',
+    info: 'ℹ️',
+    warn: '⚠️'
+  };
+
+  toast.innerHTML = `
+    <span class="toast-icon">${iconMap[type] || 'ℹ️'}</span>
+    <span class="toast-body">${safeText(message)}</span>
+  `;
+
+  container.appendChild(toast);
+  requestAnimationFrame(() => {
+    toast.classList.add('show');
+  });
+
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => {
+      toast.remove();
+    }, 320);
+  }, duration);
+}
+
 function labelPretty(label) {
   if (!label) return '—';
   const [y, m] = label.split('-');
@@ -169,6 +272,13 @@ function iconFor(kom) {
 }
 function safeText(txt) {
   return String(txt).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+}
+function highlightQuery(text, query) {
+  if (!query || !query.trim()) return safeText(text);
+  const safeStr = safeText(text);
+  const q = query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(${q})`, 'gi');
+  return safeStr.replace(regex, '<mark class="search-highlight">$1</mark>');
 }
 function modelLabel(kom) {
   const mt = PANGAN_DATA.model_types?.[kom] || 'lgbm';
@@ -206,6 +316,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
   initSelects();
+  initScrollFeatures();
   loadHero();
   loadStats();
   await prefetchPredictions(state.periods);
@@ -246,8 +357,8 @@ function initSelects() {
 function loadHero() {
   const firstLabel = PANGAN_DATA.labels[0];
   const lastLabel = PANGAN_DATA.labels[PANGAN_DATA.labels.length - 1];
-  document.getElementById('hero-daerah').textContent = PANGAN_DATA.areas.length;
-  document.getElementById('hero-komoditas').textContent = PANGAN_DATA.komoditas_list.length;
+  animateCounter('hero-daerah', PANGAN_DATA.areas.length);
+  animateCounter('hero-komoditas', PANGAN_DATA.komoditas_list.length);
   document.getElementById('hero-periode').textContent = `${firstLabel.slice(0, 4)}–${lastLabel.slice(0, 4)}`;
   document.getElementById('hero-last-label').textContent = `● ${labelPretty(lastLabel)}`;
 
@@ -287,9 +398,9 @@ function loadStats() {
     const c = pct(last(s), s[0]);
     if (c >= 0) naik++; else turun++;
   });
-  document.getElementById('stat-naik').textContent = naik;
-  document.getElementById('stat-turun').textContent = turun;
-  document.getElementById('stat-daerah').textContent = PANGAN_DATA.areas.length;
+  animateCounter('stat-naik', naik);
+  animateCounter('stat-turun', turun);
+  animateCounter('stat-daerah', PANGAN_DATA.areas.length);
 }
 
 function onParamChange() {
@@ -341,6 +452,10 @@ async function runPrediction() {
     renderTrendChart(kom, daerah);
     renderDaerahCompareChart(kom, daerah);
     renderTable();
+    showToast(`Prediksi ${kom} (${daerah}) berhasil diperbarui!`, 'success');
+  } catch (err) {
+    console.error('Gagal memperbarui prediksi:', err);
+    showToast(`Gagal memproses: ${err.message || 'Periksa koneksi'}`, 'warn');
   } finally {
     btn.disabled = false;
     txt.textContent = 'Jalankan Prediksi';
@@ -368,12 +483,16 @@ function updateSummaryCards(kom, daerah) {
   const predChange = (predFinal !== null && lastActive !== null) ? pct(predFinal, lastActive) : null;
   const lastLabel = labelPretty(PANGAN_DATA.labels[PANGAN_DATA.labels.length - 1]);
 
-  document.getElementById('sc-nas-now').textContent = rp(lastNas);
+  animateCounter('sc-nas-now', lastNas, 600, rp);
   document.getElementById('sc-nas-trend').innerHTML = `<span class="${changeClass(trendNas)}">${changeLabel(trendNas)}</span> dari awal data`;
   document.getElementById('sc-nas-date').textContent = lastLabel;
 
   document.getElementById('sc-daerah-tag').textContent = `${daerah} · ${lastLabel}`;
-  document.getElementById('sc-daerah-price').textContent = rp(lastDaerah);
+  if (lastDaerah !== null) {
+    animateCounter('sc-daerah-price', lastDaerah, 600, rp);
+  } else {
+    document.getElementById('sc-daerah-price').textContent = '—';
+  }
   document.getElementById('sc-daerah-vs').innerHTML = ds
     ? `<span class="${changeClass(diffDaerah)}">${changeLabel(diffDaerah)}</span> vs nasional`
     : 'Data daerah tidak tersedia';
@@ -382,7 +501,11 @@ function updateSummaryCards(kom, daerah) {
   if (predTagEl) {
     predTagEl.textContent = hasDaerahData ? `Prediksi ${daerah}` : `Prediksi Nasional`;
   }
-  document.getElementById('sc-pred-price').textContent = rp(predFinal);
+  if (predFinal !== null) {
+    animateCounter('sc-pred-price', predFinal, 600, rp);
+  } else {
+    document.getElementById('sc-pred-price').textContent = '—';
+  }
   document.getElementById('sc-pred-change').innerHTML = `<span class="${changeClass(predChange)}">${changeLabel(predChange)}</span> dari harga terakhir`;
   document.getElementById('sc-pred-period').textContent = `${futureLabels()[0]} → ${futureLabels()[futureLabels().length - 1]} (${periodLabel()})`;
 
@@ -756,7 +879,7 @@ function renderTable() {
 
       return `
         <tr>
-          <td><strong>${iconFor(kom)} ${safeText(kom)}</strong></td>
+          <td><strong>${iconFor(kom)} ${highlightQuery(kom, search)}</strong></td>
           <td>${rp(ns[0])}</td>
           <td><strong>${rp(last(ns))}</strong></td>
           <td>${ds ? rp(last(ds)) : '—'}</td>
@@ -768,6 +891,157 @@ function renderTable() {
     });
   tbody.innerHTML = rows.join('') || `<tr><td colspan="8" class="tbl-loading">Tidak ditemukan</td></tr>`;
 }
+
+/* Ekspor Data Tabel ke File CSV */
+function exportTableToCSV() {
+  const daerah = document.getElementById('tbl-daerah')?.value || state.daerah;
+  const search = (document.getElementById('tbl-search')?.value || '').toLowerCase();
+  const nasionalLabel = PANGAN_DATA.nasional_label || 'Nasional';
+
+  const commodities = PANGAN_DATA.komoditas_list.filter(kom => !search || kom.toLowerCase().includes(search));
+  if (!commodities.length) {
+    showToast('Tidak ada data komoditas untuk diekspor', 'warn');
+    return;
+  }
+
+  const pLabel = periodLabel();
+  const headers = [
+    'Komoditas',
+    'Nasional Awal (Rp)',
+    'Nasional Terakhir (Rp)',
+    `Daerah Terakhir (${daerah}) (Rp)`,
+    `Selisih vs Nasional (%)`,
+    'Prediksi Bulan ke-1 (Rp)',
+    `Prediksi Akhir (${pLabel}) (Rp)`,
+    'Tren Nasional (%)'
+  ];
+
+  const rows = [headers];
+
+  commodities.forEach(kom => {
+    const ns = PANGAN_DATA.nasional[kom];
+    const ds = PANGAN_DATA.daerah[daerah]?.[kom];
+    const hasDaerahData = ds && ds.length > 0;
+    const activeSeries = hasDaerahData ? ds : ns;
+    const activeWilayah = hasDaerahData ? daerah : nasionalLabel;
+
+    const pred = lightGBMForecast(activeSeries, state.periods, activeWilayah, kom);
+    const tr = pct(last(ns), ns[0]);
+    const diff = ds ? pct(last(ds), last(ns)) : null;
+
+    const nasAwal = ns && ns[0] !== undefined ? ns[0] : '';
+    const nasAkhir = ns ? (last(ns) !== null ? last(ns) : '') : '';
+    const daerahAkhir = ds ? (last(ds) !== null ? last(ds) : '') : '';
+    const selisihPct = diff !== null ? diff.toFixed(2) + '%' : '';
+    const pred1 = pred[0] !== null ? Math.round(pred[0]) : '';
+    const predEnd = pred[pred.length - 1] !== null ? Math.round(pred[pred.length - 1]) : '';
+    const trenPct = tr !== null ? tr.toFixed(2) + '%' : '';
+
+    rows.push([
+      `"${kom.replace(/"/g, '""')}"`,
+      nasAwal,
+      nasAkhir,
+      daerahAkhir,
+      selisihPct,
+      pred1,
+      predEnd,
+      trenPct
+    ]);
+  });
+
+  const csvContent = '\uFEFF' + rows.map(r => r.join(',')).join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+  
+  a.href = url;
+  a.download = `PanganTrack_${daerah.replace(/\s+/g, '_')}_${dateStr}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showToast(`Tabel berhasil diekspor (${commodities.length} komoditas)`, 'success');
+}
+
+/* Ekspor Grafik SVG ke Format Gambar PNG Resolusi Tinggi */
+function exportChartToPNG(svgId, filenamePrefix = 'Grafik_PanganTrack') {
+  const svg = document.getElementById(svgId);
+  if (!svg) {
+    showToast('Elemen grafik tidak ditemukan', 'warn');
+    return;
+  }
+
+  try {
+    const svgClone = svg.cloneNode(true);
+    const bbox = svg.getBoundingClientRect();
+    const width = bbox.width > 0 ? bbox.width : 640;
+    const height = bbox.height > 0 ? bbox.height : 260;
+
+    svgClone.setAttribute('width', width);
+    svgClone.setAttribute('height', height);
+
+    // Sematkan font inline agar teks grafik terbaca sempurna
+    const styleEl = document.createElement('style');
+    styleEl.textContent = `
+      text { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-weight: 500; }
+    `;
+    svgClone.prepend(styleEl);
+
+    const serializer = new XMLSerializer();
+    const svgStr = serializer.serializeToString(svgClone);
+    const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+    const blobUrl = URL.createObjectURL(svgBlob);
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const scale = 2; // Resolusi 2x retina crisp
+      const canvas = document.createElement('canvas');
+      canvas.width = width * scale;
+      canvas.height = height * scale;
+      const ctx = canvas.getContext('2d');
+
+      // Latar belakang putih bersih
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Render gambar dari SVG
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(blobUrl);
+
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          showToast('Gagal memproses gambar grafik', 'warn');
+          return;
+        }
+        const a = document.createElement('a');
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+        const komoditasName = (state.komoditas || 'Komoditas').replace(/\s+/g, '_');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${filenamePrefix}_${komoditasName}_${dateStr}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        showToast('Grafik berhasil disimpan sebagai gambar PNG!', 'success');
+      }, 'image/png');
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(blobUrl);
+      showToast('Gagal memuat visualisasi untuk disimpan', 'warn');
+    };
+    img.src = blobUrl;
+  } catch (err) {
+    console.error('Error exportChartToPNG:', err);
+    showToast('Terjadi kesalahan saat menyimpan grafik', 'warn');
+  }
+}
+
+
 
 function buildSparkline(series, cls) {
   const mn = Math.min(...series), mx = Math.max(...series);

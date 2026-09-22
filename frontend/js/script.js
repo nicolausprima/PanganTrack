@@ -211,6 +211,38 @@ function initScrollFeatures() {
   }, { passive: true });
 }
 
+/* Sistem Toast Notifikasi Modern */
+function showToast(message, type = 'success', duration = 3200) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast-message toast-${type}`;
+
+  const iconMap = {
+    success: '✅',
+    info: 'ℹ️',
+    warn: '⚠️'
+  };
+
+  toast.innerHTML = `
+    <span class="toast-icon">${iconMap[type] || 'ℹ️'}</span>
+    <span class="toast-body">${safeText(message)}</span>
+  `;
+
+  container.appendChild(toast);
+  requestAnimationFrame(() => {
+    toast.classList.add('show');
+  });
+
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => {
+      toast.remove();
+    }, 320);
+  }, duration);
+}
+
 function labelPretty(label) {
   if (!label) return '—';
   const [y, m] = label.split('-');
@@ -413,6 +445,10 @@ async function runPrediction() {
     renderTrendChart(kom, daerah);
     renderDaerahCompareChart(kom, daerah);
     renderTable();
+    showToast(`Prediksi ${kom} (${daerah}) berhasil diperbarui!`, 'success');
+  } catch (err) {
+    console.error('Gagal memperbarui prediksi:', err);
+    showToast(`Gagal memproses: ${err.message || 'Periksa koneksi'}`, 'warn');
   } finally {
     btn.disabled = false;
     txt.textContent = 'Jalankan Prediksi';

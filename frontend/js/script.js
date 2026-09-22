@@ -43,11 +43,36 @@ async function apiFetch(path, options = {}) {
   return res.json();
 }
 
-async function bootstrapFromAPI() {
-  const data = await apiFetch(API_CONFIG.ENDPOINTS.bootstrap);
-  // Populate global PANGAN_DATA dengan response API.
-  Object.assign(window.PANGAN_DATA, data);
+/* Indikator Status API & Pengukuran Latensi */
+function updateApiStatus(isOnline, latencyMs = null) {
+  const badge = document.getElementById('api-status-badge');
+  const txt = document.getElementById('api-status-text');
+  if (!badge || !txt) return;
+
+  if (isOnline) {
+    badge.classList.remove('offline');
+    const latencyStr = latencyMs !== null ? ` · ${latencyMs}ms` : '';
+    txt.textContent = `Sistem Aktif${latencyStr}`;
+  } else {
+    badge.classList.add('offline');
+    txt.textContent = 'Mode Offline';
+  }
 }
+
+async function bootstrapFromAPI() {
+  const startTime = performance.now();
+  try {
+    const data = await apiFetch(API_CONFIG.ENDPOINTS.bootstrap);
+    const latency = Math.round(performance.now() - startTime);
+    // Populate global PANGAN_DATA dengan response API.
+    Object.assign(window.PANGAN_DATA, data);
+    updateApiStatus(true, latency);
+  } catch (err) {
+    updateApiStatus(false);
+    throw err;
+  }
+}
+
 
 async function prefetchPredictions(periods, specificDaerah = null) {
   /* Pre-fetch prediksi LightGBM untuk komoditas terpilih (nasional + daerah aktif)

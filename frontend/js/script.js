@@ -273,6 +273,13 @@ function iconFor(kom) {
 function safeText(txt) {
   return String(txt).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
 }
+function highlightQuery(text, query) {
+  if (!query || !query.trim()) return safeText(text);
+  const safeStr = safeText(text);
+  const q = query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(${q})`, 'gi');
+  return safeStr.replace(regex, '<mark class="search-highlight">$1</mark>');
+}
 function modelLabel(kom) {
   const mt = PANGAN_DATA.model_types?.[kom] || 'lgbm';
   if (mt === 'ridge') return 'Ridge';
@@ -872,7 +879,7 @@ function renderTable() {
 
       return `
         <tr>
-          <td><strong>${iconFor(kom)} ${safeText(kom)}</strong></td>
+          <td><strong>${iconFor(kom)} ${highlightQuery(kom, search)}</strong></td>
           <td>${rp(ns[0])}</td>
           <td><strong>${rp(last(ns))}</strong></td>
           <td>${ds ? rp(last(ds)) : '—'}</td>

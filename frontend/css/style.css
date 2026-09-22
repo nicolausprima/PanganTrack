@@ -651,6 +651,46 @@ footer { background:var(--text); color:rgba(255,255,255,.65); padding:42px 2rem;
   transform: scale(1.1);
 }
 
+/* Search Query Highlight */
+.search-highlight {
+  background-color: rgba(239, 159, 39, 0.28);
+  color: #8C5300;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+/* Subtle Micro-Interactions & Hover Feedback */
+.sum-card, .chart-box, .insight-card {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.sum-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.07);
+}
+.p-row {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.p-row:hover {
+  transform: translateX(4px);
+}
+.pbar-row {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.pbar-row:hover {
+  transform: translateX(3px);
+  background: rgba(29, 158, 117, 0.04);
+}
+.btn-primary, .btn-run {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+.btn-primary:active, .btn-run:active {
+  transform: scale(0.97);
+}
+
+
 
 
 

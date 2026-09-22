@@ -722,10 +722,10 @@ function renderTrendChart(kom, daerah) {
     ${state.trendLayers.nasional ? `<path d="${areaNas}" fill="url(#gH)"/>` : ''}
     ${state.trendLayers.prediksi ? `<path d="${areaPred}" fill="url(#gP)"/>` : ''}
     ${selisihArea}
-    ${state.trendLayers.nasional && histNasPath ? `<path d="${histNasPath}" fill="none" stroke="#1D9E75" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
-    ${state.trendLayers.daerah && histDaerahPath ? `<path d="${histDaerahPath}" fill="none" stroke="#378ADD" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
-    ${state.trendLayers.prediksi && state.trendLayers.nasional && predNasPath ? `<path d="${predNasPath}" fill="none" stroke="#EF9F27" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7,3"/>` : ''}
-    ${state.trendLayers.prediksi && state.trendLayers.daerah && predDaerahPath ? `<path d="${predDaerahPath}" fill="none" stroke="#7C9CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5,3"/>` : ''}
+    ${state.trendLayers.nasional && histNasPath ? `<path class="chart-line-draw" d="${histNasPath}" fill="none" stroke="#1D9E75" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+    ${state.trendLayers.daerah && histDaerahPath ? `<path class="chart-line-draw" d="${histDaerahPath}" fill="none" stroke="#378ADD" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+    ${state.trendLayers.prediksi && state.trendLayers.nasional && predNasPath ? `<path class="chart-line-draw line-dashed" d="${predNasPath}" fill="none" stroke="#EF9F27" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7,3"/>` : ''}
+    ${state.trendLayers.prediksi && state.trendLayers.daerah && predDaerahPath ? `<path class="chart-line-draw line-dashed" d="${predDaerahPath}" fill="none" stroke="#7C9CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5,3"/>` : ''}
     <line x1="${divX}" y1="${P.t}" x2="${divX}" y2="${P.t + CH}" stroke="#ccc" stroke-dasharray="4,3"/>
     <text x="${parseFloat(divX) + 4}" y="${P.t + 10}" font-size="8.5" fill="#aaa">Data terakhir</text>
     ${latestDiffLabel}
@@ -793,8 +793,8 @@ function renderDaerahCompareChart(kom, daerah) {
 
   document.getElementById('svg-daerah-compare').innerHTML = `
     ${yGrid}
-    ${nasPath ? `<path d="${nasPath}" fill="none" stroke="#D85A30" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
-    ${dsPath  ? `<path d="${dsPath}"  fill="none" stroke="#378ADD" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+    ${nasPath ? `<path class="chart-line-draw" d="${nasPath}" fill="none" stroke="#D85A30" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+    ${dsPath  ? `<path class="chart-line-draw" d="${dsPath}"  fill="none" stroke="#378ADD" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
     ${lastNasIdx >= 0 ? `<circle cx="${sx(lastNasIdx).toFixed(1)}" cy="${sy(lastNasValid).toFixed(1)}" r="3" fill="#D85A30"/>` : ''}
     ${lastDsIdx  >= 0 ? `<circle cx="${sx(lastDsIdx).toFixed(1)}"  cy="${sy(lastDsValid).toFixed(1)}"  r="3" fill="#378ADD"/>` : ''}
     ${hit}

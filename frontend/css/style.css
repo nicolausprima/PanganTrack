@@ -690,6 +690,37 @@ footer { background:var(--text); color:rgba(255,255,255,.65); padding:42px 2rem;
   transform: scale(0.97);
 }
 
+/* SVG Chart Line Drawing Animation */
+@keyframes drawChartPath {
+  from {
+    stroke-dashoffset: 2500;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes fadeChartPath {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.chart-line-draw {
+  stroke-dasharray: 2500;
+  stroke-dashoffset: 2500;
+  animation: drawChartPath 1.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.chart-line-draw.line-dashed {
+  stroke-dasharray: 7 3;
+  stroke-dashoffset: 0;
+  animation: fadeChartPath 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+
 
 
 

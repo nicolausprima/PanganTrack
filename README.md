@@ -4,7 +4,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-009688.svg?style=flat&logo=FastAPI&logoColor=white)](https://fastapi.tiangolo.com/)
 [![LightGBM](https://img.shields.io/badge/LightGBM-4.3+-ff6f00.svg)](https://github.com/microsoft/LightGBM)
 [![Platform Vercel](https://img.shields.io/badge/Frontend-Vercel-black.svg?style=flat&logo=vercel&logoColor=white)](https://vercel.com/)
-[![Platform Railway](https://img.shields.io/badge/Backend-Railway-0B0D19.svg?style=flat&logo=railway&logoColor=white)](https://railway.app/)
+[![Platform Render](https://img.shields.io/badge/Backend-Render-black.svg?style=flat&logo=render&logoColor=white)](https://render.com/)
 
 **PanganTrack** adalah dashboard interaktif berbasis web untuk memantau dan memproyeksikan harga 21 komoditas pangan pokok di 9 wilayah Indonesia (serta tingkat nasional) hingga 24 bulan ke depan. Proyek ini dikembangkan menggunakan model **Machine Learning (LightGBM & Ridge Regression)** yang di-deploy dengan backend **FastAPI** dan frontend **Vanilla HTML/CSS/JS**.
 

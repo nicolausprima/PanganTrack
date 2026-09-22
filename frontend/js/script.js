@@ -14,7 +14,7 @@
 const API_CONFIG = {
   BASE_URL: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? ''
-    : 'https://pangantrack-production.up.railway.app',
+    : 'https://pangantrack.onrender.com',
   ENDPOINTS: {
     bootstrap:    '/api/bootstrap',
     predict:      '/api/predict',

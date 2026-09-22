@@ -166,6 +166,9 @@
               <div class="leg"><div class="leg-dot blue"></div>Daerah</div>
               <div class="leg"><div class="leg-dot amber"></div>Prediksi</div>
               <div class="leg"><div class="leg-dot purple"></div>Selisih</div>
+              <button class="btn-chart-expand" id="btn-chart-fullscreen" onclick="toggleChartFullscreen()" title="Mode Layar Penuh (Fullscreen)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+              </button>
             </div>
           </div>
           <div class="chart-toggle-row" aria-label="Kontrol grafik tren">
@@ -288,6 +291,20 @@
 
   <!-- Kontainer Notifikasi Toast Modern -->
   <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- Modal Fullscreen View untuk Visualisasi Tren -->
+  <div id="modal-chart-fullscreen" class="chart-modal-overlay" onclick="closeChartFullscreen(event)">
+    <div class="chart-modal-content" onclick="event.stopPropagation()">
+      <div class="chart-modal-header">
+        <div>
+          <div class="chart-modal-title" id="modal-chart-title">Grafik Tren Harga</div>
+          <div class="chart-modal-sub">Mode Tampilan Layar Penuh — PanganTrack</div>
+        </div>
+        <button class="chart-modal-close" onclick="closeChartFullscreen()" title="Tutup (Esc)">✕</button>
+      </div>
+      <div class="chart-modal-body" id="modal-chart-body"></div>
+    </div>
+  </div>
 
   <script src="js/data.js"></script>
   <script src="js/script.js?v=2"></script>

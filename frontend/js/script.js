@@ -1098,6 +1098,43 @@ function exportChartToPNG(svgId, filenamePrefix = 'Grafik_PanganTrack') {
   }
 }
 
+/* Modal Fullscreen View untuk Grafik Tren */
+function toggleChartFullscreen() {
+  const modal = document.getElementById('modal-chart-fullscreen');
+  const body = document.getElementById('modal-chart-body');
+  const svg = document.getElementById('svg-nasional');
+  const title = document.getElementById('modal-chart-title');
+
+  if (!modal || !body || !svg) return;
+
+  if (title) {
+    title.textContent = `Tren Harga ${state.komoditas} (${state.daerah} vs Nasional)`;
+  }
+
+  body.innerHTML = '';
+  const clone = svg.cloneNode(true);
+  clone.id = 'svg-fullscreen-clone';
+  clone.setAttribute('viewBox', '0 0 640 260');
+  clone.style.width = '100%';
+  clone.style.height = 'auto';
+  body.appendChild(clone);
+
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeChartFullscreen(e = null) {
+  if (e && e.target && e.target.closest && e.target.closest('.chart-modal-content')) {
+    return;
+  }
+  const modal = document.getElementById('modal-chart-fullscreen');
+  if (modal) {
+    modal.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+}
+
+
 
 
 function buildSparkline(series, cls) {

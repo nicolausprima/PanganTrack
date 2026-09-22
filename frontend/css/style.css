@@ -773,6 +773,21 @@ footer { background:var(--text); color:rgba(255,255,255,.65); padding:42px 2rem;
   font-weight: 600;
 }
 
+/* Crosshair Tracker & Chart Glow Hover Effects */
+.chart-crosshair {
+  pointer-events: none;
+  transition: opacity 0.15s ease, x1 0.05s linear, x2 0.05s linear;
+}
+.hover-dot {
+  transition: opacity 0.18s ease, r 0.18s ease;
+}
+.hover-dot:hover {
+  opacity: 0.35 !important;
+  r: 7px !important;
+  filter: drop-shadow(0 0 5px currentColor);
+}
+
+
 
 
 

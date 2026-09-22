@@ -761,8 +761,33 @@ function renderTrendChart(kom, daerah) {
     <line x1="${divX}" y1="${P.t}" x2="${divX}" y2="${P.t + CH}" stroke="#ccc" stroke-dasharray="4,3"/>
     <text x="${parseFloat(divX) + 4}" y="${P.t + 10}" font-size="8.5" fill="#aaa">Data terakhir</text>
     ${latestDiffLabel}
+    <line id="chart-crosshair" class="chart-crosshair" x1="0" y1="${P.t}" x2="0" y2="${P.t + CH}" stroke="#1D9E75" stroke-dasharray="3,3" stroke-width="1.2" opacity="0"/>
     ${dots}
     ${xLabels}`;
+
+  const svgEl = document.getElementById('svg-nasional');
+  if (svgEl) {
+    svgEl.onmousemove = (e) => {
+      const rect = svgEl.getBoundingClientRect();
+      if (!rect.width) return;
+      const x = (e.clientX - rect.left) * (W / rect.width);
+      const crosshair = document.getElementById('chart-crosshair');
+      if (crosshair) {
+        if (x >= P.l && x <= W - P.r) {
+          crosshair.setAttribute('x1', x.toFixed(1));
+          crosshair.setAttribute('x2', x.toFixed(1));
+          crosshair.style.opacity = '0.55';
+        } else {
+          crosshair.style.opacity = '0';
+        }
+      }
+    };
+    svgEl.onmouseleave = () => {
+      const crosshair = document.getElementById('chart-crosshair');
+      if (crosshair) crosshair.style.opacity = '0';
+      hideTooltip();
+    };
+  }
 }
 
 function renderDaerahCompareChart(kom, daerah) {

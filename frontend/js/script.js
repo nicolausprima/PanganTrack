@@ -180,6 +180,37 @@ function animateCounter(elementOrId, targetValue, duration = 800, formatFn = nul
   requestAnimationFrame(update);
 }
 
+/* Inisialisasi progress bar scroll dan tombol back-to-top */
+function initScrollFeatures() {
+  const progressBar = document.getElementById('scroll-progress');
+  const backToTopBtn = document.getElementById('btn-back-to-top');
+  if (!progressBar && !backToTopBtn) return;
+
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      window.requestAnimationFrame(() => {
+        const winScroll = document.documentElement.scrollTop || document.body.scrollTop;
+        const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        const scrolled = height > 0 ? (winScroll / height) * 100 : 0;
+
+        if (progressBar) {
+          progressBar.style.width = Math.min(Math.max(scrolled, 0), 100) + '%';
+        }
+        if (backToTopBtn) {
+          if (winScroll > 320) {
+            backToTopBtn.classList.add('show');
+          } else {
+            backToTopBtn.classList.remove('show');
+          }
+        }
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }, { passive: true });
+}
+
 function labelPretty(label) {
   if (!label) return '—';
   const [y, m] = label.split('-');
@@ -246,6 +277,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
   initSelects();
+  initScrollFeatures();
   loadHero();
   loadStats();
   await prefetchPredictions(state.periods);

@@ -55,6 +55,9 @@ PanganTrack/
 │   ├── 03_Preprocessing.ipynb
 │   ├── 04_Forecasting.ipynb
 │   └── 05_Train_Per_Komoditas.ipynb
+├── Dockerfile              # Docker container untuk Backend (LightGBM & FastAPI)
+├── render.yaml             # Konfigurasi deployment service di Render
+├── vercel.json             # Konfigurasi deployment frontend di Vercel
 ├── requirements.txt        # Daftar dependency Python
 └── README.md
 ```
@@ -112,9 +115,14 @@ Jalankan perintah berikut pada direktori root proyek untuk mengaktifkan server F
 uvicorn api.main:app --reload --port 8000
 ```
 
-Setelah server aktif:
-*   Akses **Dashboard Aplikasi:** [https://pangan-track.vercel.app/](https://pangan-track.vercel.app/)
-*   Akses **Dokumentasi API Swagger:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+Setelah server aktif (lokal):
+*   Akses **Dashboard Lokal:** [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
+*   Akses **Dokumentasi API Swagger (Lokal):** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+
+🔗 **Live Production:**
+*   Akses **Dashboard Production (Vercel):** [https://pangan-track.vercel.app/](https://pangan-track.vercel.app/)
+*   Akses **Backend API Service (Render):** [https://pangantrack.onrender.com/](https://pangantrack.onrender.com/)
+*   Akses **Dokumentasi API Swagger (Render Live):** [https://pangantrack.onrender.com/docs](https://pangantrack.onrender.com/docs)
 
 ---
 
@@ -122,6 +130,7 @@ Setelah server aktif:
 
 | Method | Endpoint | Fungsi |
 | :--- | :--- | :--- |
+| `GET` | `/` | Mengecek status aktif server Backend API. |
 | `GET` | `/api/bootstrap` | Memuat semua data awal dashboard (wilayah, komoditas, harga nasional, & daerah). |
 | `GET` | `/api/wilayah` | Mengambil daftar wilayah yang tersedia di dataset. |
 | `GET` | `/api/komoditas` | Mengambil daftar komoditas pangan yang terdaftar. |
@@ -140,11 +149,15 @@ Setelah server aktif:
 
 ---
 
-## 🚀 Deployment (Render)
+## 🌐 Arsitektur Deployment (Vercel & Render)
 
-Aplikasi ini sudah dikonfigurasi untuk dideploy ke [Render](https://render.com) menggunakan file `render.yaml`.
-1. Login ke dashboard Render.
-2. Buat **New** -> **Blueprint**.
-3. Hubungkan repositori GitHub ini.
-4. Render akan otomatis membaca file `render.yaml` dan melakukan deploy.
-*(Pastikan untuk mengatur variabel environment seperti `DATABASE_URL` di dashboard jika menggunakan MySQL eksternal).*
+Proyek ini menggunakan pemisahan layanan (*decoupled architecture*):
+
+*   **Frontend (Vercel):**
+    *   URL: [https://pangan-track.vercel.app/](https://pangan-track.vercel.app/)
+    *   Dihosting sebagai static web application yang di-deploy otomatis oleh Vercel menggunakan [`vercel.json`](vercel.json).
+*   **Backend & ML Inference (Render):**
+    *   URL: [https://pangantrack.onrender.com/](https://pangantrack.onrender.com/)
+    *   Dihosting menggunakan container **Docker** melalui [`Dockerfile`](Dockerfile) dan konfigurasi [`render.yaml`](render.yaml) untuk memastikan ketersediaan pustaka runtime C++ yang dibutuhkan oleh **LightGBM** (`libgomp1`).
+    *   Health check path diset ke `/api`.
+

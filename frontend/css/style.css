@@ -618,5 +618,39 @@ footer { background:var(--text); color:rgba(255,255,255,.65); padding:42px 2rem;
   flex-shrink: 0;
 }
 
+/* Chart Export Buttons */
+.btn-chart-save {
+  margin-left: auto;
+  background: rgba(29, 158, 117, 0.08);
+  color: var(--green);
+  border-color: rgba(29, 158, 117, 0.3);
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+.btn-chart-save:hover {
+  background: var(--green);
+  color: #ffffff;
+  border-color: var(--green);
+}
+.btn-icon-save {
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  margin-left: 8px;
+  padding: 2px 6px;
+  line-height: 1;
+  transition: all 0.2s ease;
+  vertical-align: middle;
+}
+.btn-icon-save:hover {
+  background: rgba(29, 158, 117, 0.15);
+  border-color: var(--green);
+  transform: scale(1.1);
+}
+
+
 
 

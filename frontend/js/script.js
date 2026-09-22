@@ -959,6 +959,82 @@ function exportTableToCSV() {
   showToast(`Tabel berhasil diekspor (${commodities.length} komoditas)`, 'success');
 }
 
+/* Ekspor Grafik SVG ke Format Gambar PNG Resolusi Tinggi */
+function exportChartToPNG(svgId, filenamePrefix = 'Grafik_PanganTrack') {
+  const svg = document.getElementById(svgId);
+  if (!svg) {
+    showToast('Elemen grafik tidak ditemukan', 'warn');
+    return;
+  }
+
+  try {
+    const svgClone = svg.cloneNode(true);
+    const bbox = svg.getBoundingClientRect();
+    const width = bbox.width > 0 ? bbox.width : 640;
+    const height = bbox.height > 0 ? bbox.height : 260;
+
+    svgClone.setAttribute('width', width);
+    svgClone.setAttribute('height', height);
+
+    // Sematkan font inline agar teks grafik terbaca sempurna
+    const styleEl = document.createElement('style');
+    styleEl.textContent = `
+      text { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-weight: 500; }
+    `;
+    svgClone.prepend(styleEl);
+
+    const serializer = new XMLSerializer();
+    const svgStr = serializer.serializeToString(svgClone);
+    const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+    const blobUrl = URL.createObjectURL(svgBlob);
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const scale = 2; // Resolusi 2x retina crisp
+      const canvas = document.createElement('canvas');
+      canvas.width = width * scale;
+      canvas.height = height * scale;
+      const ctx = canvas.getContext('2d');
+
+      // Latar belakang putih bersih
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Render gambar dari SVG
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(blobUrl);
+
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          showToast('Gagal memproses gambar grafik', 'warn');
+          return;
+        }
+        const a = document.createElement('a');
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+        const komoditasName = (state.komoditas || 'Komoditas').replace(/\s+/g, '_');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${filenamePrefix}_${komoditasName}_${dateStr}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        showToast('Grafik berhasil disimpan sebagai gambar PNG!', 'success');
+      }, 'image/png');
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(blobUrl);
+      showToast('Gagal memuat visualisasi untuk disimpan', 'warn');
+    };
+    img.src = blobUrl;
+  } catch (err) {
+    console.error('Error exportChartToPNG:', err);
+    showToast('Terjadi kesalahan saat menyimpan grafik', 'warn');
+  }
+}
+
+
 
 function buildSparkline(series, cls) {
   const mn = Math.min(...series), mx = Math.max(...series);

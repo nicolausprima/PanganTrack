@@ -243,6 +243,49 @@ function showToast(message, type = 'success', duration = 3200) {
   }, duration);
 }
 
+/* Inisialisasi Shortcut Keyboard Navigasi & Aksesibilitas */
+function initKeyboardShortcuts() {
+  window.addEventListener('keydown', (e) => {
+    const activeEl = document.activeElement;
+    const isTyping = activeEl && (
+      activeEl.tagName === 'INPUT' ||
+      activeEl.tagName === 'SELECT' ||
+      activeEl.tagName === 'TEXTAREA' ||
+      activeEl.isContentEditable
+    );
+
+    // Tekan '/' untuk langsung menuju kotak pencarian tabel
+    if (e.key === '/' && !isTyping) {
+      e.preventDefault();
+      const searchInput = document.getElementById('tbl-search');
+      if (searchInput) {
+        gotoSection('tabel');
+        searchInput.focus();
+        searchInput.select();
+        showToast('Pencarian komoditas aktif', 'info', 1800);
+      }
+    }
+
+    // Tekan 'Escape' untuk menutup modal fullscreen atau mereset pencarian
+    if (e.key === 'Escape') {
+      const modal = document.getElementById('modal-chart-fullscreen');
+      if (modal && modal.classList.contains('open')) {
+        closeChartFullscreen();
+        return;
+      }
+      const searchInput = document.getElementById('tbl-search');
+      if (searchInput && document.activeElement === searchInput) {
+        if (searchInput.value) {
+          searchInput.value = '';
+          renderTable();
+        }
+        searchInput.blur();
+      }
+    }
+  });
+}
+
+
 function labelPretty(label) {
   if (!label) return '—';
   const [y, m] = label.split('-');
@@ -318,6 +361,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initSelects();
   renderQuickChips();
   initScrollFeatures();
+  initKeyboardShortcuts();
   loadHero();
   loadStats();
   await prefetchPredictions(state.periods);

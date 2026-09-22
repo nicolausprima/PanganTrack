@@ -885,6 +885,81 @@ function renderTable() {
   tbody.innerHTML = rows.join('') || `<tr><td colspan="8" class="tbl-loading">Tidak ditemukan</td></tr>`;
 }
 
+/* Ekspor Data Tabel ke File CSV */
+function exportTableToCSV() {
+  const daerah = document.getElementById('tbl-daerah')?.value || state.daerah;
+  const search = (document.getElementById('tbl-search')?.value || '').toLowerCase();
+  const nasionalLabel = PANGAN_DATA.nasional_label || 'Nasional';
+
+  const commodities = PANGAN_DATA.komoditas_list.filter(kom => !search || kom.toLowerCase().includes(search));
+  if (!commodities.length) {
+    showToast('Tidak ada data komoditas untuk diekspor', 'warn');
+    return;
+  }
+
+  const pLabel = periodLabel();
+  const headers = [
+    'Komoditas',
+    'Nasional Awal (Rp)',
+    'Nasional Terakhir (Rp)',
+    `Daerah Terakhir (${daerah}) (Rp)`,
+    `Selisih vs Nasional (%)`,
+    'Prediksi Bulan ke-1 (Rp)',
+    `Prediksi Akhir (${pLabel}) (Rp)`,
+    'Tren Nasional (%)'
+  ];
+
+  const rows = [headers];
+
+  commodities.forEach(kom => {
+    const ns = PANGAN_DATA.nasional[kom];
+    const ds = PANGAN_DATA.daerah[daerah]?.[kom];
+    const hasDaerahData = ds && ds.length > 0;
+    const activeSeries = hasDaerahData ? ds : ns;
+    const activeWilayah = hasDaerahData ? daerah : nasionalLabel;
+
+    const pred = lightGBMForecast(activeSeries, state.periods, activeWilayah, kom);
+    const tr = pct(last(ns), ns[0]);
+    const diff = ds ? pct(last(ds), last(ns)) : null;
+
+    const nasAwal = ns && ns[0] !== undefined ? ns[0] : '';
+    const nasAkhir = ns ? (last(ns) !== null ? last(ns) : '') : '';
+    const daerahAkhir = ds ? (last(ds) !== null ? last(ds) : '') : '';
+    const selisihPct = diff !== null ? diff.toFixed(2) + '%' : '';
+    const pred1 = pred[0] !== null ? Math.round(pred[0]) : '';
+    const predEnd = pred[pred.length - 1] !== null ? Math.round(pred[pred.length - 1]) : '';
+    const trenPct = tr !== null ? tr.toFixed(2) + '%' : '';
+
+    rows.push([
+      `"${kom.replace(/"/g, '""')}"`,
+      nasAwal,
+      nasAkhir,
+      daerahAkhir,
+      selisihPct,
+      pred1,
+      predEnd,
+      trenPct
+    ]);
+  });
+
+  const csvContent = '\uFEFF' + rows.map(r => r.join(',')).join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+  
+  a.href = url;
+  a.download = `PanganTrack_${daerah.replace(/\s+/g, '_')}_${dateStr}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showToast(`Tabel berhasil diekspor (${commodities.length} komoditas)`, 'success');
+}
+
+
 function buildSparkline(series, cls) {
   const mn = Math.min(...series), mx = Math.max(...series);
   const color = cls === 'up' ? '#1D9E75' : cls === 'down' ? '#E24B4A' : '#EF9F27';

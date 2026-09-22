@@ -587,4 +587,36 @@ footer { background:var(--text); color:rgba(255,255,255,.65); padding:42px 2rem;
   line-height: 1.45;
 }
 
+/* Action Buttons: Export & Utility */
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #ffffff;
+  border: 1.5px solid var(--border-mid);
+  border-radius: var(--r-sm);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  white-space: nowrap;
+}
+.btn-export:hover {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green-pale);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(29, 158, 117, 0.15);
+}
+.btn-export:active {
+  transform: translateY(0);
+}
+.btn-export svg {
+  flex-shrink: 0;
+}
+
+
 

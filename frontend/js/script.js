@@ -316,6 +316,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
   initSelects();
+  renderQuickChips();
   initScrollFeatures();
   loadHero();
   loadStats();
@@ -387,9 +388,39 @@ function loadHero() {
 function selectCommodity(kom) {
   document.getElementById('sel-komoditas').value = kom;
   document.getElementById('sel-kom-daerah').value = kom;
+  updateActiveQuickChip(kom);
   onParamChange();
   gotoSection('prediksi');
 }
+
+/* Quick Filter Chips untuk Pilihan Komoditas Populer */
+function renderQuickChips() {
+  const container = document.getElementById('quick-chips-list');
+  if (!container) return;
+
+  const popular = ['Beras', 'Bawang Merah', 'Cabai Merah', 'Daging Ayam', 'Telur Ayam Ras Segar', 'Minyak Goreng']
+    .filter(k => PANGAN_DATA.komoditas_list.includes(k));
+
+  container.innerHTML = popular.map(kom => {
+    const isActive = kom === state.komoditas ? 'active' : '';
+    return `
+      <button type="button" class="quick-chip ${isActive}" data-komoditas="${safeText(kom)}" onclick="selectQuickChip('${kom.replace(/'/g, "\\'")}')">
+        <span>${iconFor(kom)}</span>
+        <span>${safeText(kom)}</span>
+      </button>`;
+  }).join('');
+}
+
+function selectQuickChip(kom) {
+  selectCommodity(kom);
+}
+
+function updateActiveQuickChip(kom) {
+  document.querySelectorAll('.quick-chip').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-komoditas') === kom);
+  });
+}
+
 
 function loadStats() {
   let naik = 0, turun = 0;
@@ -409,6 +440,7 @@ function onParamChange() {
   state.periods = Number(document.getElementById('sel-period')?.value || state.periods || 6);
   document.getElementById('sel-kom-daerah').value = state.komoditas;
   document.getElementById('tbl-daerah').value = state.daerah;
+  updateActiveQuickChip(state.komoditas);
   updateModelBadge(state.komoditas);
   runPrediction();
   renderDaerahBars();

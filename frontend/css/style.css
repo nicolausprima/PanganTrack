@@ -468,3 +468,13 @@ footer { background:var(--text); color:rgba(255,255,255,.65); padding:42px 2rem;
   vertical-align: middle !important;
   white-space: nowrap;
 }
+
+/* =======================================================
+   Frontend Enhancements by Ardan - Interactive & Motion
+   ======================================================= */
+
+/* Tabular numbers for smooth counter animation */
+.hstat-num, .stat-num, .sc-price {
+  font-variant-numeric: tabular-nums;
+  transition: transform 0.2s ease;
+}

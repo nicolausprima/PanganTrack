@@ -140,6 +140,46 @@ function avg(arr) {
 function gotoSection(id) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
 }
+
+/* Animasi angka bertahap (Smooth Counter Animation) */
+function animateCounter(elementOrId, targetValue, duration = 800, formatFn = null) {
+  const el = typeof elementOrId === 'string' ? document.getElementById(elementOrId) : elementOrId;
+  if (!el || targetValue === null || targetValue === undefined || isNaN(targetValue)) {
+    if (el) el.textContent = formatFn ? formatFn(targetValue) : (targetValue ?? '—');
+    return;
+  }
+
+  const target = Number(targetValue);
+  const start = el._currentVal !== undefined ? el._currentVal : 0;
+  el._currentVal = target;
+
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    el.textContent = formatFn ? formatFn(target) : target.toLocaleString('id-ID');
+    return;
+  }
+
+  const startTime = performance.now();
+  function update(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const easeProgress = 1 - Math.pow(1 - progress, 3);
+    const current = start + (target - start) * easeProgress;
+
+    if (formatFn) {
+      el.textContent = formatFn(Math.round(current));
+    } else {
+      el.textContent = Math.round(current).toLocaleString('id-ID');
+    }
+
+    if (progress < 1) {
+      requestAnimationFrame(update);
+    } else {
+      el.textContent = formatFn ? formatFn(target) : target.toLocaleString('id-ID');
+    }
+  }
+  requestAnimationFrame(update);
+}
+
 function labelPretty(label) {
   if (!label) return '—';
   const [y, m] = label.split('-');
@@ -246,8 +286,8 @@ function initSelects() {
 function loadHero() {
   const firstLabel = PANGAN_DATA.labels[0];
   const lastLabel = PANGAN_DATA.labels[PANGAN_DATA.labels.length - 1];
-  document.getElementById('hero-daerah').textContent = PANGAN_DATA.areas.length;
-  document.getElementById('hero-komoditas').textContent = PANGAN_DATA.komoditas_list.length;
+  animateCounter('hero-daerah', PANGAN_DATA.areas.length);
+  animateCounter('hero-komoditas', PANGAN_DATA.komoditas_list.length);
   document.getElementById('hero-periode').textContent = `${firstLabel.slice(0, 4)}–${lastLabel.slice(0, 4)}`;
   document.getElementById('hero-last-label').textContent = `● ${labelPretty(lastLabel)}`;
 
@@ -287,9 +327,9 @@ function loadStats() {
     const c = pct(last(s), s[0]);
     if (c >= 0) naik++; else turun++;
   });
-  document.getElementById('stat-naik').textContent = naik;
-  document.getElementById('stat-turun').textContent = turun;
-  document.getElementById('stat-daerah').textContent = PANGAN_DATA.areas.length;
+  animateCounter('stat-naik', naik);
+  animateCounter('stat-turun', turun);
+  animateCounter('stat-daerah', PANGAN_DATA.areas.length);
 }
 
 function onParamChange() {
@@ -368,12 +408,16 @@ function updateSummaryCards(kom, daerah) {
   const predChange = (predFinal !== null && lastActive !== null) ? pct(predFinal, lastActive) : null;
   const lastLabel = labelPretty(PANGAN_DATA.labels[PANGAN_DATA.labels.length - 1]);
 
-  document.getElementById('sc-nas-now').textContent = rp(lastNas);
+  animateCounter('sc-nas-now', lastNas, 600, rp);
   document.getElementById('sc-nas-trend').innerHTML = `<span class="${changeClass(trendNas)}">${changeLabel(trendNas)}</span> dari awal data`;
   document.getElementById('sc-nas-date').textContent = lastLabel;
 
   document.getElementById('sc-daerah-tag').textContent = `${daerah} · ${lastLabel}`;
-  document.getElementById('sc-daerah-price').textContent = rp(lastDaerah);
+  if (lastDaerah !== null) {
+    animateCounter('sc-daerah-price', lastDaerah, 600, rp);
+  } else {
+    document.getElementById('sc-daerah-price').textContent = '—';
+  }
   document.getElementById('sc-daerah-vs').innerHTML = ds
     ? `<span class="${changeClass(diffDaerah)}">${changeLabel(diffDaerah)}</span> vs nasional`
     : 'Data daerah tidak tersedia';
@@ -382,7 +426,11 @@ function updateSummaryCards(kom, daerah) {
   if (predTagEl) {
     predTagEl.textContent = hasDaerahData ? `Prediksi ${daerah}` : `Prediksi Nasional`;
   }
-  document.getElementById('sc-pred-price').textContent = rp(predFinal);
+  if (predFinal !== null) {
+    animateCounter('sc-pred-price', predFinal, 600, rp);
+  } else {
+    document.getElementById('sc-pred-price').textContent = '—';
+  }
   document.getElementById('sc-pred-change').innerHTML = `<span class="${changeClass(predChange)}">${changeLabel(predChange)}</span> dari harga terakhir`;
   document.getElementById('sc-pred-period').textContent = `${futureLabels()[0]} → ${futureLabels()[futureLabels().length - 1]} (${periodLabel()})`;
 

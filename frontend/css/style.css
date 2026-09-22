@@ -690,6 +690,255 @@ footer { background:var(--text); color:rgba(255,255,255,.65); padding:42px 2rem;
   transform: scale(0.97);
 }
 
+/* SVG Chart Line Drawing Animation */
+@keyframes drawChartPath {
+  from {
+    stroke-dashoffset: 2500;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes fadeChartPath {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.chart-line-draw {
+  stroke-dasharray: 2500;
+  stroke-dashoffset: 2500;
+  animation: drawChartPath 1.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.chart-line-draw.line-dashed {
+  stroke-dasharray: 7 3;
+  stroke-dashoffset: 0;
+  animation: fadeChartPath 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Quick Filter Chips */
+.quick-chips-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -6px 0 16px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+}
+.quick-chips-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+.quick-chips-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+.quick-chip {
+  background: #ffffff;
+  border: 1.5px solid var(--border-mid);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+}
+.quick-chip:hover {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green-pale);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(29, 158, 117, 0.15);
+}
+.quick-chip.active {
+  background: var(--green);
+  color: #ffffff;
+  border-color: var(--green);
+  box-shadow: 0 3px 12px rgba(29, 158, 117, 0.35);
+  font-weight: 600;
+}
+
+/* Crosshair Tracker & Chart Glow Hover Effects */
+.chart-crosshair {
+  pointer-events: none;
+  transition: opacity 0.15s ease, x1 0.05s linear, x2 0.05s linear;
+}
+.hover-dot {
+  transition: opacity 0.18s ease, r 0.18s ease;
+}
+.hover-dot:hover {
+  opacity: 0.35 !important;
+  r: 7px !important;
+  filter: drop-shadow(0 0 5px currentColor);
+}
+
+/* Fullscreen Modal View for Chart */
+.btn-chart-expand {
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  padding: 3px 6px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.btn-chart-expand:hover {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green-pale);
+  transform: scale(1.1);
+}
+.chart-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.28s ease, visibility 0.28s ease;
+}
+.chart-modal-overlay.open {
+  opacity: 1;
+  visibility: visible;
+}
+.chart-modal-content {
+  background: #ffffff;
+  border-radius: var(--r-lg);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);
+  width: 100%;
+  max-width: 980px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: scale(0.92);
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.chart-modal-overlay.open .chart-modal-content {
+  transform: scale(1);
+}
+.chart-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+  background: #FAFAFA;
+}
+.chart-modal-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: var(--text);
+  font-weight: 600;
+}
+.chart-modal-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.chart-modal-close {
+  background: rgba(0, 0, 0, 0.05);
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 15px;
+  cursor: pointer;
+  color: var(--text);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.chart-modal-close:hover {
+  background: #E24B4A;
+  color: #ffffff;
+  transform: rotate(90deg);
+}
+.chart-modal-body {
+  padding: 24px 28px 30px;
+  flex: 1;
+  overflow: auto;
+  background: #FFFFFF;
+}
+.chart-modal-body svg {
+  width: 100%;
+  height: auto;
+  max-height: 55vh;
+  display: block;
+}
+
+/* Search Input Wrap with Keyboard Shortcut Badge */
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  max-width: 320px;
+}
+.search-input-wrap .search-input {
+  width: 100%;
+  padding-right: 36px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.search-input-wrap .search-input:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(29, 158, 117, 0.18);
+}
+.search-shortcut-hint {
+  position: absolute;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  font-family: inherit;
+  pointer-events: none;
+  user-select: none;
+  transition: opacity 0.2s;
+}
+.search-input:focus + .search-shortcut-hint {
+  opacity: 0;
+}
+
+
+
+
+
+
 
 
 

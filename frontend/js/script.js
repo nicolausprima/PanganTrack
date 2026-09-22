@@ -243,6 +243,49 @@ function showToast(message, type = 'success', duration = 3200) {
   }, duration);
 }
 
+/* Inisialisasi Shortcut Keyboard Navigasi & Aksesibilitas */
+function initKeyboardShortcuts() {
+  window.addEventListener('keydown', (e) => {
+    const activeEl = document.activeElement;
+    const isTyping = activeEl && (
+      activeEl.tagName === 'INPUT' ||
+      activeEl.tagName === 'SELECT' ||
+      activeEl.tagName === 'TEXTAREA' ||
+      activeEl.isContentEditable
+    );
+
+    // Tekan '/' untuk langsung menuju kotak pencarian tabel
+    if (e.key === '/' && !isTyping) {
+      e.preventDefault();
+      const searchInput = document.getElementById('tbl-search');
+      if (searchInput) {
+        gotoSection('tabel');
+        searchInput.focus();
+        searchInput.select();
+        showToast('Pencarian komoditas aktif', 'info', 1800);
+      }
+    }
+
+    // Tekan 'Escape' untuk menutup modal fullscreen atau mereset pencarian
+    if (e.key === 'Escape') {
+      const modal = document.getElementById('modal-chart-fullscreen');
+      if (modal && modal.classList.contains('open')) {
+        closeChartFullscreen();
+        return;
+      }
+      const searchInput = document.getElementById('tbl-search');
+      if (searchInput && document.activeElement === searchInput) {
+        if (searchInput.value) {
+          searchInput.value = '';
+          renderTable();
+        }
+        searchInput.blur();
+      }
+    }
+  });
+}
+
+
 function labelPretty(label) {
   if (!label) return '—';
   const [y, m] = label.split('-');
@@ -316,7 +359,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
   initSelects();
+  renderQuickChips();
   initScrollFeatures();
+  initKeyboardShortcuts();
   loadHero();
   loadStats();
   await prefetchPredictions(state.periods);
@@ -387,9 +432,39 @@ function loadHero() {
 function selectCommodity(kom) {
   document.getElementById('sel-komoditas').value = kom;
   document.getElementById('sel-kom-daerah').value = kom;
+  updateActiveQuickChip(kom);
   onParamChange();
   gotoSection('prediksi');
 }
+
+/* Quick Filter Chips untuk Pilihan Komoditas Populer */
+function renderQuickChips() {
+  const container = document.getElementById('quick-chips-list');
+  if (!container) return;
+
+  const popular = ['Beras', 'Bawang Merah', 'Cabai Merah', 'Daging Ayam', 'Telur Ayam Ras Segar', 'Minyak Goreng']
+    .filter(k => PANGAN_DATA.komoditas_list.includes(k));
+
+  container.innerHTML = popular.map(kom => {
+    const isActive = kom === state.komoditas ? 'active' : '';
+    return `
+      <button type="button" class="quick-chip ${isActive}" data-komoditas="${safeText(kom)}" onclick="selectQuickChip('${kom.replace(/'/g, "\\'")}')">
+        <span>${iconFor(kom)}</span>
+        <span>${safeText(kom)}</span>
+      </button>`;
+  }).join('');
+}
+
+function selectQuickChip(kom) {
+  selectCommodity(kom);
+}
+
+function updateActiveQuickChip(kom) {
+  document.querySelectorAll('.quick-chip').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-komoditas') === kom);
+  });
+}
+
 
 function loadStats() {
   let naik = 0, turun = 0;
@@ -409,6 +484,7 @@ function onParamChange() {
   state.periods = Number(document.getElementById('sel-period')?.value || state.periods || 6);
   document.getElementById('sel-kom-daerah').value = state.komoditas;
   document.getElementById('tbl-daerah').value = state.daerah;
+  updateActiveQuickChip(state.komoditas);
   updateModelBadge(state.komoditas);
   runPrediction();
   renderDaerahBars();
@@ -722,15 +798,40 @@ function renderTrendChart(kom, daerah) {
     ${state.trendLayers.nasional ? `<path d="${areaNas}" fill="url(#gH)"/>` : ''}
     ${state.trendLayers.prediksi ? `<path d="${areaPred}" fill="url(#gP)"/>` : ''}
     ${selisihArea}
-    ${state.trendLayers.nasional && histNasPath ? `<path d="${histNasPath}" fill="none" stroke="#1D9E75" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
-    ${state.trendLayers.daerah && histDaerahPath ? `<path d="${histDaerahPath}" fill="none" stroke="#378ADD" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
-    ${state.trendLayers.prediksi && state.trendLayers.nasional && predNasPath ? `<path d="${predNasPath}" fill="none" stroke="#EF9F27" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7,3"/>` : ''}
-    ${state.trendLayers.prediksi && state.trendLayers.daerah && predDaerahPath ? `<path d="${predDaerahPath}" fill="none" stroke="#7C9CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5,3"/>` : ''}
+    ${state.trendLayers.nasional && histNasPath ? `<path class="chart-line-draw" d="${histNasPath}" fill="none" stroke="#1D9E75" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+    ${state.trendLayers.daerah && histDaerahPath ? `<path class="chart-line-draw" d="${histDaerahPath}" fill="none" stroke="#378ADD" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+    ${state.trendLayers.prediksi && state.trendLayers.nasional && predNasPath ? `<path class="chart-line-draw line-dashed" d="${predNasPath}" fill="none" stroke="#EF9F27" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7,3"/>` : ''}
+    ${state.trendLayers.prediksi && state.trendLayers.daerah && predDaerahPath ? `<path class="chart-line-draw line-dashed" d="${predDaerahPath}" fill="none" stroke="#7C9CFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5,3"/>` : ''}
     <line x1="${divX}" y1="${P.t}" x2="${divX}" y2="${P.t + CH}" stroke="#ccc" stroke-dasharray="4,3"/>
     <text x="${parseFloat(divX) + 4}" y="${P.t + 10}" font-size="8.5" fill="#aaa">Data terakhir</text>
     ${latestDiffLabel}
+    <line id="chart-crosshair" class="chart-crosshair" x1="0" y1="${P.t}" x2="0" y2="${P.t + CH}" stroke="#1D9E75" stroke-dasharray="3,3" stroke-width="1.2" opacity="0"/>
     ${dots}
     ${xLabels}`;
+
+  const svgEl = document.getElementById('svg-nasional');
+  if (svgEl) {
+    svgEl.onmousemove = (e) => {
+      const rect = svgEl.getBoundingClientRect();
+      if (!rect.width) return;
+      const x = (e.clientX - rect.left) * (W / rect.width);
+      const crosshair = document.getElementById('chart-crosshair');
+      if (crosshair) {
+        if (x >= P.l && x <= W - P.r) {
+          crosshair.setAttribute('x1', x.toFixed(1));
+          crosshair.setAttribute('x2', x.toFixed(1));
+          crosshair.style.opacity = '0.55';
+        } else {
+          crosshair.style.opacity = '0';
+        }
+      }
+    };
+    svgEl.onmouseleave = () => {
+      const crosshair = document.getElementById('chart-crosshair');
+      if (crosshair) crosshair.style.opacity = '0';
+      hideTooltip();
+    };
+  }
 }
 
 function renderDaerahCompareChart(kom, daerah) {
@@ -793,8 +894,8 @@ function renderDaerahCompareChart(kom, daerah) {
 
   document.getElementById('svg-daerah-compare').innerHTML = `
     ${yGrid}
-    ${nasPath ? `<path d="${nasPath}" fill="none" stroke="#D85A30" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
-    ${dsPath  ? `<path d="${dsPath}"  fill="none" stroke="#378ADD" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+    ${nasPath ? `<path class="chart-line-draw" d="${nasPath}" fill="none" stroke="#D85A30" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+    ${dsPath  ? `<path class="chart-line-draw" d="${dsPath}"  fill="none" stroke="#378ADD" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
     ${lastNasIdx >= 0 ? `<circle cx="${sx(lastNasIdx).toFixed(1)}" cy="${sy(lastNasValid).toFixed(1)}" r="3" fill="#D85A30"/>` : ''}
     ${lastDsIdx  >= 0 ? `<circle cx="${sx(lastDsIdx).toFixed(1)}"  cy="${sy(lastDsValid).toFixed(1)}"  r="3" fill="#378ADD"/>` : ''}
     ${hit}
@@ -1040,6 +1141,43 @@ function exportChartToPNG(svgId, filenamePrefix = 'Grafik_PanganTrack') {
     showToast('Terjadi kesalahan saat menyimpan grafik', 'warn');
   }
 }
+
+/* Modal Fullscreen View untuk Grafik Tren */
+function toggleChartFullscreen() {
+  const modal = document.getElementById('modal-chart-fullscreen');
+  const body = document.getElementById('modal-chart-body');
+  const svg = document.getElementById('svg-nasional');
+  const title = document.getElementById('modal-chart-title');
+
+  if (!modal || !body || !svg) return;
+
+  if (title) {
+    title.textContent = `Tren Harga ${state.komoditas} (${state.daerah} vs Nasional)`;
+  }
+
+  body.innerHTML = '';
+  const clone = svg.cloneNode(true);
+  clone.id = 'svg-fullscreen-clone';
+  clone.setAttribute('viewBox', '0 0 640 260');
+  clone.style.width = '100%';
+  clone.style.height = 'auto';
+  body.appendChild(clone);
+
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeChartFullscreen(e = null) {
+  if (e && e.target && e.target.closest && e.target.closest('.chart-modal-content')) {
+    return;
+  }
+  const modal = document.getElementById('modal-chart-fullscreen');
+  if (modal) {
+    modal.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+}
+
 
 
 

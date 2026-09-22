@@ -84,6 +84,11 @@
         <p class="section-sub">Pilih komoditas dan daerah untuk melihat perbandingan harga, selisih terhadap nasional, serta prediksi LightGBM untuk 1 bulan, 3 bulan, 6 bulan, atau 1 tahun ke depan.</p>
       </div>
 
+      <div class="quick-chips-wrap" aria-label="Pilihan cepat komoditas populer">
+        <span class="quick-chips-label">⚡ Populer:</span>
+        <div class="quick-chips-list" id="quick-chips-list"></div>
+      </div>
+
       <div class="controls-bar">
         <div class="ctrl-group">
           <label class="ctrl-label">Komoditas</label>
@@ -161,6 +166,9 @@
               <div class="leg"><div class="leg-dot blue"></div>Daerah</div>
               <div class="leg"><div class="leg-dot amber"></div>Prediksi</div>
               <div class="leg"><div class="leg-dot purple"></div>Selisih</div>
+              <button class="btn-chart-expand" id="btn-chart-fullscreen" onclick="toggleChartFullscreen()" title="Mode Layar Penuh (Fullscreen)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+              </button>
             </div>
           </div>
           <div class="chart-toggle-row" aria-label="Kontrol grafik tren">
@@ -234,7 +242,10 @@
         <p class="section-sub" id="table-subtitle">Data nasional terbaru, prediksi sesuai rentang pilihan, dan selisih harga daerah pilihan terhadap nasional.</p>
       </div>
       <div class="tbl-controls">
-        <input type="text" id="tbl-search" placeholder="🔍 Cari komoditas..." oninput="renderTable()" class="search-input">
+        <div class="search-input-wrap">
+          <input type="text" id="tbl-search" placeholder="🔍 Cari komoditas..." oninput="renderTable()" class="search-input">
+          <kbd class="search-shortcut-hint" title="Tekan '/' untuk mencari">/</kbd>
+        </div>
         <select id="tbl-daerah" onchange="onTableDaerahChange()"></select>
         <button class="btn-export" id="btn-export-csv" onclick="exportTableToCSV()" title="Unduh data tabel dalam format CSV">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -283,6 +294,20 @@
 
   <!-- Kontainer Notifikasi Toast Modern -->
   <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- Modal Fullscreen View untuk Visualisasi Tren -->
+  <div id="modal-chart-fullscreen" class="chart-modal-overlay" onclick="closeChartFullscreen(event)">
+    <div class="chart-modal-content" onclick="event.stopPropagation()">
+      <div class="chart-modal-header">
+        <div>
+          <div class="chart-modal-title" id="modal-chart-title">Grafik Tren Harga</div>
+          <div class="chart-modal-sub">Mode Tampilan Layar Penuh — PanganTrack</div>
+        </div>
+        <button class="chart-modal-close" onclick="closeChartFullscreen()" title="Tutup (Esc)">✕</button>
+      </div>
+      <div class="chart-modal-body" id="modal-chart-body"></div>
+    </div>
+  </div>
 
   <script src="js/data.js"></script>
   <script src="js/script.js?v=2"></script>

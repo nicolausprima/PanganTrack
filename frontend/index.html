@@ -19,7 +19,16 @@
         <a href="#provinsi">Per Daerah</a>
         <a href="#tabel">Tabel Data</a>
       </div>
-      <button class="btn-primary" onclick="gotoSection('prediksi')">Coba Prediksi</button>
+      <div class="nav-actions">
+        <div class="api-status-badge" id="api-status-badge" title="Status koneksi sistem backend & model">
+          <span class="status-pulse-dot"></span>
+          <span class="status-text" id="api-status-text">Memeriksa...</span>
+        </div>
+        <button class="theme-toggle-btn" id="theme-toggle-btn" onclick="toggleTheme()" title="Ubah Tema Gelap/Terang" aria-label="Ganti mode tema">
+          <span class="theme-icon" id="theme-icon">🌙</span>
+        </button>
+        <button class="btn-primary" onclick="gotoSection('prediksi')">Coba Prediksi</button>
+      </div>
     </div>
   </nav>
 

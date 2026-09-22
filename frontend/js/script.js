@@ -43,11 +43,36 @@ async function apiFetch(path, options = {}) {
   return res.json();
 }
 
-async function bootstrapFromAPI() {
-  const data = await apiFetch(API_CONFIG.ENDPOINTS.bootstrap);
-  // Populate global PANGAN_DATA dengan response API.
-  Object.assign(window.PANGAN_DATA, data);
+/* Indikator Status API & Pengukuran Latensi */
+function updateApiStatus(isOnline, latencyMs = null) {
+  const badge = document.getElementById('api-status-badge');
+  const txt = document.getElementById('api-status-text');
+  if (!badge || !txt) return;
+
+  if (isOnline) {
+    badge.classList.remove('offline');
+    const latencyStr = latencyMs !== null ? ` · ${latencyMs}ms` : '';
+    txt.textContent = `Sistem Aktif${latencyStr}`;
+  } else {
+    badge.classList.add('offline');
+    txt.textContent = 'Mode Offline';
+  }
 }
+
+async function bootstrapFromAPI() {
+  const startTime = performance.now();
+  try {
+    const data = await apiFetch(API_CONFIG.ENDPOINTS.bootstrap);
+    const latency = Math.round(performance.now() - startTime);
+    // Populate global PANGAN_DATA dengan response API.
+    Object.assign(window.PANGAN_DATA, data);
+    updateApiStatus(true, latency);
+  } catch (err) {
+    updateApiStatus(false);
+    throw err;
+  }
+}
+
 
 async function prefetchPredictions(periods, specificDaerah = null) {
   /* Pre-fetch prediksi LightGBM untuk komoditas terpilih (nasional + daerah aktif)
@@ -349,6 +374,34 @@ function lightGBMForecast(series, periods = 6, wilayah = null, komoditas = null)
   return Array(periods).fill(lastVal);
 }
 
+/* Manajemen Tema Gelap / Terang (Dark / Light Mode) */
+function initTheme() {
+  const savedTheme = localStorage.getItem('pangantrack_theme');
+  const icon = document.getElementById('theme-icon');
+  if (savedTheme === 'dark') {
+    document.body.classList.add('dark-theme');
+    if (icon) icon.textContent = '☀️';
+  } else {
+    document.body.classList.remove('dark-theme');
+    if (icon) icon.textContent = '🌙';
+  }
+}
+
+function toggleTheme() {
+  const isDark = document.body.classList.toggle('dark-theme');
+  const icon = document.getElementById('theme-icon');
+  if (isDark) {
+    localStorage.setItem('pangantrack_theme', 'dark');
+    if (icon) icon.textContent = '☀️';
+    showToast('Mode Gelap diaktifkan', 'info', 1800);
+  } else {
+    localStorage.setItem('pangantrack_theme', 'light');
+    if (icon) icon.textContent = '🌙';
+    showToast('Mode Terang diaktifkan', 'info', 1800);
+  }
+}
+
+
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     await bootstrapFromAPI();
@@ -358,6 +411,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           (API_CONFIG.BASE_URL || window.location.origin) + '.');
     return;
   }
+  initTheme();
   initSelects();
   renderQuickChips();
   initScrollFeatures();

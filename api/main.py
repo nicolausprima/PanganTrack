@@ -37,6 +37,15 @@ async def startup():
 
 app.include_router(router, prefix="/api", tags=["Forecast"])
 
+@app.get("/")
+def root():
+    return {
+        "status": "online",
+        "service": "PanganTrack Backend API",
+        "docs": "/docs",
+        "api": "/api"
+    }
+
 @app.get("/api")
 def api_root():
     return {"message": "API Forecast Harga Komoditas berjalan"}
